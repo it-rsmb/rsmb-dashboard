@@ -12,7 +12,7 @@ class EmploymentController extends Controller
     {
         $dataFeed = new DataFeed();
 
-        return view('pages/employment/employment');
+        return view('pages/employment/index');
     }
 
      public function getDataEmp(Request $request)

@@ -1,17 +1,9 @@
 import Chart from 'chart.js/auto';
-import { renderGenderChart } from './genderChart.js';
-import { renderAgeChart } from './ageChart.js';
-import { renderStatusEmployeeChart } from './statusEmployeeChart.js';
-import { renderOrganizationChart } from './organizationChart.js';
-import { renderTenureChart } from './tenureChart.js';
-
+import { renderSalaryByStatusChart } from './salaryByStatus.js';
 // Objek untuk menyimpan semua instance chart
 export const chartInstances = {
-  genderChart: null,
-  ageChart: null,
-  statusEmployeeChart: null,
-  organizationChart: null,
-  tenureChart: null
+  genderCsalaryByStatusCharthart: null,
+
 };
 
 export { Chart };
@@ -103,7 +95,7 @@ async function fetchAndDisplayData() {
         $loading.show();
         $chartContainer.hide();
 
-        const apiUrl = import.meta.env.VITE_API_URL;
+        const apiUrl = import.meta.env.VITE_API_PAYROLL;
         if (!apiUrl) {
             throw new Error('API URL tidak ditemukan di environment variables');
         }
@@ -111,15 +103,12 @@ async function fetchAndDisplayData() {
         const response = await fetch(apiUrl);
         latestData = await response.json();
 
-        console.log('Data terbaru:', latestData);
+        console.log('Data terbaru payroll:', latestData.data);
 
         $loading.hide();
         $chartContainer.removeClass('hidden').fadeIn(100, () => {
-            renderGenderChart(latestData);
-            renderAgeChart(latestData);
-            renderStatusEmployeeChart(latestData);
-            renderOrganizationChart(latestData);
-            renderTenureChart(latestData);
+            renderSalaryByStatusChart(latestData.data);
+            // render chart lainnya...
         });
 
     } catch (error) {
