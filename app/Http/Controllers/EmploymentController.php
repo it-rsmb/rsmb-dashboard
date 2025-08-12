@@ -28,21 +28,6 @@ class EmploymentController extends Controller
         ]);
     }
 
-    public function getSheetData()
-    {
-        $googleSheetUrl = 'https://script.google.com/macros/s/AKfycbwYyh30wVbDW1YazmvTGgXdHFIAshqBxMXgJ-UpmOj_Txh0G7qiWujky4oE9PIRqaxX/exec';
 
-        // Ambil data dari Google Sheet
-        $response = Http::get($googleSheetUrl);
-
-        // Cek status
-        if ($response->successful()) {
-            return response()->json($response->json()); // balikin data ke frontend
-        } else {
-            return response()->json([
-                'error' => 'Gagal mengambil data dari Google Sheet'
-            ], $response->status());
-        }
-    }
 
 }

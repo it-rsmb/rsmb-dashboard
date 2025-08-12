@@ -1,6 +1,8 @@
-@vite(['resources/js/employment/index.js'])
+@vite(['resources/js/employee-attendance/index.js'])
 
+<style>
 
+</style>
 
 <x-app-layout>
     <div class="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-9xl mx-auto">
@@ -9,7 +11,7 @@
         <div class="sm:flex sm:justify-between sm:items-center mb-8">
             <!-- Title -->
             <div class="mb-4 sm:mb-0">
-                <h1 class="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">Employment</h1>
+                <h1 class="text-2xl md:text-3xl text-gray-800 dark:text-gray-100 font-bold">Employee Attendance</h1>
             </div>
 
             <!-- Actions -->
@@ -30,58 +32,36 @@
         <!-- Main Content -->
         <div id="loadingIndicator"><x-loading /></div>
 
-        <div id="chartContainer" class="grid grid-cols-12 gap-6 hidden">
-            <x-employment.gender />
-            <x-employment.age />
-            <x-employment.status />
+        <div id="chartContainer" class="grid grid-cols-1 xl:grid-cols-2 gap-6 hidden">
+            <!-- Chart 1 -->
+            <x-attendance.department-latein />
 
-
-
-            <div class="col-span-full xl:col-span-8 bg-white dark:bg-gray-800 shadow-xs rounded-xl">
+            <!-- Chart 2 -->
+            <div class="bg-white dark:bg-gray-800 shadow-xs rounded-xl">
                 <header class="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
-                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">Distribution by Organization</h2>
+                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">
+                        Top 5 Departments with the Highest Lateness
+                    </h2>
                 </header>
                 <div class="p-3">
-
-
                     <div class="overflow-x-auto">
-                        <canvas id="organizationChart" width="400" height="200"></canvas>
+                        <canvas id="topAbsenceChart" width="400" height="300"></canvas>
                     </div>
                 </div>
             </div>
 
-            <div class="col-span-full xl:col-span-12 bg-white dark:bg-gray-800 shadow-xs rounded-xl">
+            <div class="bg-white dark:bg-gray-800 shadow-xs rounded-xl">
                 <header class="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
-                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">Distribution by Organization</h2>
+                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">
+                        Top 5 Departments with the Highest Lateness
+                    </h2>
                 </header>
                 <div class="p-3">
-
-
                     <div class="overflow-x-auto">
-                        <canvas id="tenureChart" width="400" height="200"></canvas>
+                        <canvas id="attendancePatternChart" width="400" height="300"></canvas>
                     </div>
                 </div>
             </div>
-
-
-            {{-- <div
-                class="flex flex-col col-span-full sm:col-span-12 xl:col-span-4 bg-white dark:bg-gray-800 shadow-xs rounded-xl">
-                <header class="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
-                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">Employment Status</h2>
-                </header>
-                <div class="grow flex flex-col justify-center mt-1">
-                    <div>
-                        <canvas id="tenureChart" width="389" height="350"></canvas>
-                    </div>
-                    <div class="px-5 pt-2 pb-6">
-                        <ul id="tenureChart" class="flex flex-wrap justify-center -m-1"></ul>
-                    </div>
-                </div>
-            </div> --}}
-
-
-
-
         </div>
 
     </div>

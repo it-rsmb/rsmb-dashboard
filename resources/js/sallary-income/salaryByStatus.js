@@ -1,40 +1,47 @@
 import { Chart, chartTheme, chartInstances } from './index.js';
 
+
 export function renderSalaryByStatusChart(data) {
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
     const gridColor = isDark ? chartTheme.gridColor.dark : chartTheme.gridColor.light;
 
-    // Helper function untuk konversi gaji_pokok ke angka
-    const safeParseSalary = (value) => {
+    // Helper function untuk konversi THP ke angka
+    const safeParseTHP = (value) => {
         if (value === null || value === undefined) return 0;
         const str = value.toString().replace(/[^\d]/g, '');
         return parseFloat(str) || 0;
     };
 
-    // Kelompokkan data berdasarkan status_employee
+    // Kelompokkan data dengan menggabungkan CAPEG, KONTRAK 2, dan Contract
     const statusGroups = data.reduce((acc, curr) => {
-        const status = curr.status_employee || 'Unknown';
-        const gaji = safeParseSalary(curr.gaji_pokok);
+        // Gabungkan status CAPEG, KONTRAK 2, dan Contract menjadi "Non-Permanent"
+        let status = curr.status_employee || 'Unknown';
+        if (['CAPEG', 'KONTRAK 2', 'Contract'].includes(status)) {
+            status = 'Non-Permanent';
+        }
+
+        const thp = safeParseTHP(curr.total_thp);
 
         if (!acc[status]) {
             acc[status] = {
-                totalGaji: 0,
+                totalTHP: 0,
                 count: 0,
-                minGaji: Infinity,
-                maxGaji: -Infinity,
+                minTHP: Infinity,
+                maxTHP: -Infinity,
                 employees: []
             };
         }
 
-        acc[status].totalGaji += gaji;
+        acc[status].totalTHP += thp;
         acc[status].count++;
-        acc[status].minGaji = Math.min(acc[status].minGaji, gaji);
-        acc[status].maxGaji = Math.max(acc[status].maxGaji, gaji);
+        acc[status].minTHP = Math.min(acc[status].minTHP, thp);
+        acc[status].maxTHP = Math.max(acc[status].maxTHP, thp);
         acc[status].employees.push({
             name: curr.name,
-            gaji_pokok: gaji,
-            total_thp: safeParseSalary(curr.total_thp)
+            original_status: curr.status_employee, // Simpan status asli
+            gaji_pokok: safeParseTHP(curr.gaji_pokok),
+            total_thp: thp
         });
         return acc;
     }, {});
@@ -42,7 +49,7 @@ export function renderSalaryByStatusChart(data) {
     // Siapkan data untuk chart
     const labels = Object.keys(statusGroups);
     const averages = labels.map(status =>
-        Math.round(statusGroups[status].totalGaji / statusGroups[status].count)
+        Math.round(statusGroups[status].totalTHP / statusGroups[status].count)
     );
 
     const ctx = document.getElementById('salaryByStatusChart').getContext('2d');
@@ -66,13 +73,11 @@ export function renderSalaryByStatusChart(data) {
         return new Intl.NumberFormat('id-ID').format(value);
     };
 
-    // Warna modern
+    // Warna modern (sesuaikan dengan jumlah status setelah digabung)
     const backgroundColors = [
-        'rgba(99, 102, 241, 0.8)',
-        'rgba(244, 63, 94, 0.8)',
-        'rgba(16, 185, 129, 0.8)',
-        'rgba(245, 158, 11, 0.8)',
-        'rgba(139, 92, 246, 0.8)'
+        'rgba(99, 102, 241, 0.8)', // Permanent
+        'rgba(244, 63, 94, 0.8)',  // Non-Permanent
+        'rgba(16, 185, 129, 0.8)', // Lainnya (jika ada)
     ];
 
     // Buat chart baru
@@ -81,7 +86,7 @@ export function renderSalaryByStatusChart(data) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Rata-rata Gaji Pokok',
+                label: 'Rata-rata THP',
                 data: averages,
                 backgroundColor: backgroundColors,
                 borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -108,21 +113,29 @@ export function renderSalaryByStatusChart(data) {
                         label: function(context) {
                             const status = context.label;
                             const group = statusGroups[status];
-                            const range = group.maxGaji - group.minGaji;
-                            const avgTHP = group.employees.reduce((sum, emp) => sum + emp.total_thp, 0) / group.count;
+                            const range = group.maxTHP - group.minTHP;
+
+                            // Tampilkan detail status asli dalam tooltip
+                            const statusDetails = {};
+                            group.employees.forEach(emp => {
+                                statusDetails[emp.original_status] = (statusDetails[emp.original_status] || 0) + 1;
+                            });
+                            const statusDetailText = Object.entries(statusDetails)
+                                .map(([s, count]) => `${s}: ${count} orang`)
+                                .join('\n');
 
                             return [
                                 `Jumlah Karyawan: ${formatNumber(group.count)}`,
-                                `Total Gaji Pokok: ${formatCurrency(group.totalGaji)}`, // Baris baru yang ditambahkan
+                                `Detail Status:\n${statusDetailText}`,
+                                `Total THP: ${formatCurrency(group.totalTHP)}`,
                                 `Rata-rata: ${formatCurrency(context.raw)}`,
-                                `Min: ${formatCurrency(group.minGaji)}`,
-                                `Max: ${formatCurrency(group.maxGaji)}`,
-                                `Range: ${formatCurrency(range)}`,
-                                `THP Terkait: ${formatCurrency(avgTHP)} (rata-rata)`
+                                `Min: ${formatCurrency(group.minTHP)}`,
+                                `Max: ${formatCurrency(group.maxTHP)}`,
+                                `Range: ${formatCurrency(range)}`
                             ];
                         },
                         title: function(context) {
-                            return `Status: ${context[0].label}`;
+                            return `Kelompok: ${context[0].label}`;
                         }
                     }
                 }
@@ -168,22 +181,22 @@ export function renderSalaryByStatusChart(data) {
         ? '0 4px 6px rgba(0, 0, 0, 0.1)'
         : '0 4px 6px rgba(0, 0, 0, 0.05)';
 
-    // Hitung dan tampilkan total gaji pokok
-    showTotalGajiPokok(data);
+    // Hitung dan tampilkan total THP
+    showTotalTHP(data);
 }
 
-// Fungsi untuk menampilkan total gaji pokok
-function showTotalGajiPokok(data) {
-    // Hapus tampilan sebelumnya jika ada
-    const existingDisplay = document.getElementById('total-gaji-display');
+// ... (fungsi showTotalTHP dan addTotalTHPStyles tetap sama seperti sebelumnya)
+
+// Fungsi untuk menampilkan total THP
+function showTotalTHP(data) {
+    const existingDisplay = document.getElementById('total-thp-display');
     if (existingDisplay) existingDisplay.remove();
 
-    // Hitung total gaji pokok semua karyawan
+    // Hitung total THP semua karyawan
     const total = data.reduce((sum, curr) => {
-        return sum + parseFloat(curr.gaji_pokok.toString().replace(/[^\d]/g, '')) || 0;
+        return sum + parseFloat(curr.total_thp.toString().replace(/[^\d]/g, '')) || 0;
     }, 0);
 
-    // Format mata uang
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -192,13 +205,13 @@ function showTotalGajiPokok(data) {
         }).format(value);
     };
 
-    // Buat container khusus untuk total gaji
+    // Buat container untuk total THP
     const totalContainer = document.createElement('div');
-    totalContainer.id = 'total-gaji-display';
-    totalContainer.className = 'total-gaji-container';
+    totalContainer.id = 'total-thp-display';
+    totalContainer.className = 'total-thp-container';
     totalContainer.innerHTML = `
-        <div class="total-gaji-content">
-            <h3 class="total-title">Total Gaji Pokok</h3>
+        <div class="total-thp-content">
+            <h3 class="total-title">Total Take Home Pay (THP)</h3>
             <div class="total-amount">${formatCurrency(total)}</div>
             <div class="total-karyawan">${data.length} karyawan</div>
         </div>
@@ -209,69 +222,63 @@ function showTotalGajiPokok(data) {
     chartContainer.parentNode.insertBefore(totalContainer, chartContainer.nextSibling);
 
     // Tambahkan CSS
-    addTotalGajiStyles();
+    addTotalTHPStyles();
 }
 
-// Fungsi untuk menambahkan CSS khusus
-function addTotalGajiStyles() {
-    const styleId = 'total-gaji-styles';
+// Fungsi untuk menambahkan CSS khusus THP
+function addTotalTHPStyles() {
+    const styleId = 'total-thp-styles';
     if (document.getElementById(styleId)) return;
 
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
-        .total-gaji-container {
+        .total-thp-container {
             margin-top: 20px;
             padding: 16px;
-            background: #f8fafc;
+            background: #f0fdf4;
             border-radius: 12px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #dcfce7;
             transition: all 0.3s ease;
         }
 
-        .dark .total-gaji-container {
-            background: #1e293b;
-            border-color: #334155;
+        .dark .total-thp-container {
+            background: #1a2e22;
+            border-color: #2e4b3b;
         }
 
-        .total-gaji-content {
+        .total-thp-content {
             text-align: center;
         }
 
         .total-title {
             margin: 0 0 8px 0;
             font-size: 16px;
-            color: #64748b;
+            color: #3f6212;
         }
 
         .dark .total-title {
-            color: #94a3b8;
+            color: #84cc16;
         }
 
         .total-amount {
             font-size: 24px;
             font-weight: bold;
-            color: #3b82f6;
+            color: #16a34a;
             margin-bottom: 4px;
         }
 
         .dark .total-amount {
-            color: #60a5fa;
+            color: #4ade80;
         }
 
         .total-karyawan {
             font-size: 14px;
-            color: #94a3b8;
+            color: #65a30d;
         }
 
-        /* Layout fix untuk chart container */
-        .chart-container-wrapper {
-            position: relative;
-        }
-
-        .chart-container {
-            height: 400px !important;
-            width: 100% !important;
+        .dark .total-karyawan {
+            color: #86efac;
         }
     `;
     document.head.appendChild(style);

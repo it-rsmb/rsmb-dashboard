@@ -18,10 +18,11 @@ class UserSeeder extends Seeder
             'name' => 'System Administrator',
             'email' => 'dindin.abduloh@rsmb.co.id',
             'email_verified_at' => now(),
-            'password' => Hash::make('@53Dashboard'), // Gantilah dengan password yang aman
+            'password' => Hash::make('password1234'),
             'remember_token' => Str::random(10),
             'current_team_id' => null,
             'profile_photo_path' => null,
         ]);
     }
 }
+

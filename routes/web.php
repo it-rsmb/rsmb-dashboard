@@ -5,6 +5,7 @@ use App\Http\Controllers\DataFeedController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmploymentController;
 use App\Http\Controllers\SallaryIncomeController;
+use App\Http\Controllers\EmployeeAttendanceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\InvoiceController;
@@ -35,7 +36,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/employment', [EmploymentController::class, 'index'])->name('employment');
     Route::get('dashboard/sallary-income', [SallaryIncomeController::class, 'index'])->name('sallary-income');
-    Route::get('/api/employment/data', [EmploymentController::class, 'getDataEmp']);
+    Route::get('dashboard/employee-attendance', [EmployeeAttendanceController::class, 'index'])->name('employee-attendance');
+
 
 
     Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('analytics');
