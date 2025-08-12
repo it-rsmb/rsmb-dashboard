@@ -7,8 +7,11 @@ export default defineConfig({
       input: [
         'resources/css/app.css',
         'resources/js/app.js',
+        'resources/js/employment/index.js',
+        'resources/js/employee-attendance/index.js',
+        'resources/js/sallary-income/index.js',
       ],
       refresh: true,
     }),
-  ],  
+  ],
 });
