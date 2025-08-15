@@ -1,7 +1,45 @@
 @vite(['resources/js/sallary-income/index.js'])
 
 <style>
+    .chart-container {
+    width: 100%;
+    min-height: 300px;
+}
 
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.revenue-summary {
+    font-size: 0.875rem;
+}
+
+.revenue-summary .summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.dark .revenue-summary .summary-row {
+    border-bottom-color: #374151;
+}
+
+.revenue-summary .summary-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.revenue-summary strong {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.dark .revenue-summary {
+    color: #e5e7eb;
+}
 </style>
 
 <x-app-layout>
@@ -33,31 +71,30 @@
         <div id="loadingIndicator"><x-loading /></div>
 
         <div id="chartContainer" class="grid grid-cols-12 gap-6 hidden">
-
-
-
-             <div class="col-span-full xl:col-span-6 bg-white dark:bg-gray-800 shadow-xs rounded-xl">
+            <!-- Chart Gaji -->
+            <div class="col-span-full xl:col-span-6 bg-white dark:bg-gray-800 shadow-xs rounded-xl">
                 <header class="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
-                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">Average salary by status</h2>
+                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">Average Salary by Status</h2>
                 </header>
                 <div class="p-3">
-
-
-                    <div class="overflow-x-auto">
-                        <canvas id="salaryByStatusChart" width="400" height="300"></canvas>
-
+                    <div class="chart-container" style="height: 400px; position: relative;">
+                        <canvas id="salaryByStatusChart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <div class="chart-container-wrapper">
-                <div class="chart-container">
-                    <canvas id="salaryByStatusChart"></canvas>
+            <!-- Chart Dokter -->
+            <div class="col-span-full xl:col-span-6 bg-white dark:bg-gray-800 shadow-xs rounded-xl">
+                <header class="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
+                    <h2 class="font-semibold text-gray-800 dark:text-gray-100">Top 5 Doctors by Revenue</h2>
+                </header>
+                <div class="p-3 flex flex-col gap-4">
+                    <div class="chart-container" style="height: 350px; position: relative;">
+                        <canvas id="topDoctorsChart"></canvas>
+                    </div>
+                    <div id="revenueSummary" class="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg"></div>
                 </div>
-
             </div>
-
-
         </div>
 
     </div>

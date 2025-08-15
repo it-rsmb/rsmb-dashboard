@@ -3,12 +3,18 @@ import Chart from 'chart.js/auto';
 import { renderTopLateInDepartments  } from './lateInAnalysis.js';
 import { renderTopAbsenceDepartments } from './absenceAnalysis.js';
 import { renderAttendancePatternChart } from './attendancePattern.js';
+import { renderTimeOffByDepartment } from './timeOffChart.js';
+import { renderOnTimeAttendanceChart } from './onTimeAttendanceChart.js';
+import { renderTopLateEmployees } from './lateEmployeesChart.js';
 
 // Objek untuk menyimpan semua instance chart
 export const chartInstances = {
   topAbsenceChart: null,
   topAbsenceChart: null,
   attendancePatternChart: null,
+  timeOffChart: null,
+  onTimeAttendanceChart: null,
+  lateEmployeesChart: null,
 
 };
 
@@ -117,6 +123,9 @@ async function fetchAndDisplayData() {
             renderTopLateInDepartments(latestData);
             renderTopAbsenceDepartments(latestData);
             renderAttendancePatternChart(latestData);
+            renderTimeOffByDepartment(latestData);
+            renderOnTimeAttendanceChart(latestData);
+            renderTopLateEmployees(latestData);
             // render chart lainnya...
         });
 

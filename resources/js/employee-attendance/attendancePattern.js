@@ -43,11 +43,11 @@ export function renderAttendancePatternChart(data) {
       options: {
         responsive: true,
         plugins: {
-          title: {
-            display: true,
-            text: 'Analisis Pola Absensi Lainnya',
-            font: { size: 16 }
-          },
+        //   title: {
+        //     display: true,
+        //     text: 'Analisis Pola Absensi Lainnya',
+        //     font: { size: 16 }
+        //   },
           tooltip: {
             callbacks: {
               label: (context) => {

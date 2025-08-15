@@ -39,11 +39,11 @@ export function renderTopAbsenceDepartments(data) {
       options: {
         responsive: true,
         plugins: {
-          title: {
-            display: true,
-            text: '5 Department dengan Absensi Terbanyak',
-            font: { size: 16 }
-          },
+        //   title: {
+        //     display: true,
+        //     text: '5 Department dengan Absensi Terbanyak',
+        //     font: { size: 16 }
+        //   },
           tooltip: {
             callbacks: {
               label: function(context) {
