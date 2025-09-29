@@ -13,6 +13,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\MasterData\EmployeeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,8 +36,17 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/employment', [EmploymentController::class, 'index'])->name('employment');
+    Route::get('dashboard/list', [EmploymentController::class, 'list'])->name('listEmployment');
     Route::get('dashboard/sallary-income', [SallaryIncomeController::class, 'index'])->name('sallary-income');
     Route::get('dashboard/employee-attendance', [EmployeeAttendanceController::class, 'index'])->name('employee-attendance');
+
+
+    Route::get('dashboard/employee-attendance', [EmployeeAttendanceController::class, 'index'])->name('employee-attendance');
+    Route::get('master-data/employees', [EmployeeController::class, 'index'])->name('employees');
+    Route::get('/generate-data', [EmployeeController::class, 'generateData'])->name('generateData');
+    Route::get('/debug-talenta-response', [EmployeeController::class, 'debugTalentaResponse'])->name('debugTalentaResponse');
+    Route::get('/test-multiple-pages', [EmployeeController::class, 'testMultiplePages'])->name('testMultiplePages');
+    Route::get('employment/list', [EmploymentController::class, 'list'])->name('listEmployeee');
 
 
 

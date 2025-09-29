@@ -1,4 +1,5 @@
 import Chart from 'chart.js/auto';
+import { chartTheme, chartInstances } from './../chartConfig.js';
 import { renderGenderChart } from './genderChart.js';
 import { renderAgeChart } from './ageChart.js';
 import { renderStatusEmployeeChart } from './statusEmployeeChart.js';
@@ -6,48 +7,6 @@ import { renderOrganizationChart } from './organizationChart.js';
 import { renderTenureChart } from './tenureChart.js';
 
 // Objek untuk menyimpan semua instance chart
-export const chartInstances = {
-  genderChart: null,
-  ageChart: null,
-  statusEmployeeChart: null,
-  organizationChart: null,
-  tenureChart: null
-};
-
-export { Chart };
-// Konfigurasi tema chart
-export const chartTheme = {
-    textColor: {
-        light: '#1f2937',
-        dark: '#e5e7eb'
-    },
-    gridColor: {
-        light: '#e5e7eb',
-        dark: 'rgba(255,255,255,0.05)'
-    },
-    tooltipBg: {
-        light: '#ffffff',
-        dark: '#1f2937'
-    },
-    tooltipTitleColor: {
-        light: '#111827',
-        dark: '#f9fafb'
-    },
-    tooltipBodyColor: {
-        light: '#374151',
-        dark: '#d1d5db'
-    },
-    tooltipBorderColor: {
-        light: '#d1d5db',
-        dark: '#4b5563'
-    },
-    backgroundCanvas: {
-        light: '#ffffff',
-        dark: '#1f2937'
-    }
-};
-
-// Data terbaru
 export let latestData = [];
 
 // Fungsi untuk update tema chart
@@ -94,27 +53,54 @@ export function updateChartTheme() {
 // Event listener untuk dark mode
 document.addEventListener('darkMode', updateChartTheme);
 
+let isFetching = false;
+let initialized = false; // Tambahkan flag untuk prevent double initialization
+
 // Fungsi untuk mengambil dan menampilkan data
 async function fetchAndDisplayData() {
+    // Prevent double request
+    if (isFetching) {
+        console.log('Request sudah berjalan, skip...');
+        return;
+    }
+
     const $loading = $('#loadingIndicator');
     const $chartContainer = $('#chartContainer');
 
     try {
+        isFetching = true;
         $loading.show();
         $chartContainer.hide();
 
-        const apiUrl = import.meta.env.VITE_API_URL;
-        if (!apiUrl) {
-            throw new Error('API URL tidak ditemukan di environment variables');
-        }
+        console.log('Memulai request API...');
 
-        const response = await fetch(apiUrl);
-        latestData = await response.json();
+        // Menggunakan AJAX untuk request ke route Laravel
+        const response = await new Promise((resolve, reject) => {
+            $.ajax({
+                url: '/employment/list',
+                method: 'GET',
+                dataType: 'json',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    console.log(response);
+                    resolve(response);
+                },
+                error: function(xhr, status, error) {
+                    console.log('Request API gagal');
+                    reject(new Error(`AJAX Error: ${xhr.status} - ${xhr.statusText}`));
+                }
+            });
+        });
 
-        console.log('Data terbaru:', latestData);
+        latestData = response;
+        console.log('Data diterima, jumlah record:', latestData.data);
 
         $loading.hide();
         $chartContainer.removeClass('hidden').fadeIn(100, () => {
+            console.log('Rendering charts...');
             renderGenderChart(latestData);
             renderAgeChart(latestData);
             renderStatusEmployeeChart(latestData);
@@ -125,8 +111,19 @@ async function fetchAndDisplayData() {
     } catch (error) {
         console.error('Gagal mengambil data:', error);
         $loading.html(`<p class="text-red-600 col-span-12">Error: ${error.message}</p>`);
+    } finally {
+        isFetching = false;
+        console.log('Fetch process completed');
     }
 }
 
-// Inisialisasi saat dokumen siap
-$(document).ready(fetchAndDisplayData);
+// Inisialisasi saat dokumen siap dengan flag
+$(document).ready(function() {
+    if (!initialized) {
+        initialized = true;
+        console.log('Document ready, initializing...');
+        fetchAndDisplayData();
+    } else {
+        console.log('Already initialized, skipping...');
+    }
+});

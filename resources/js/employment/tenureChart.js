@@ -1,33 +1,53 @@
-import { Chart, chartTheme, chartInstances } from './index.js';
+import { Chart } from 'chart.js/auto';
+import { chartTheme, chartInstances } from './../chartConfig.js';
+
 
 export function renderTenureChart(data) {
+    console.log('renderTenureChart dipanggil dengan data:', data.length, 'records');
+
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
     const gridColor = isDark ? chartTheme.gridColor.dark : chartTheme.gridColor.light;
 
-    // Hitung masa kerja dalam tahun
+    // Hitung masa kerja dalam tahun dari join_date
     const tenures = data
         .map(employee => {
-            if (!employee.join_date) return null;
+            if (!employee.employment?.join_date) {
+                console.log('Employee missing join_date:', employee.name);
+                return null;
+            }
 
             try {
-                const joinDate = new Date(employee.join_date);
-                if (isNaN(joinDate.getTime())) return null;
+                const joinDate = new Date(employee.employment.join_date);
+                if (isNaN(joinDate.getTime())) {
+                    console.warn('Invalid join_date:', employee.employment.join_date, 'for employee:', employee.name);
+                    return null;
+                }
 
                 const today = new Date();
-                const diffTime = today - joinDate;
-                const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365.25);
-                return Math.floor(diffYears); // Bulatkan ke bawah ke tahun penuh
+                let years = today.getFullYear() - joinDate.getFullYear();
+                const months = today.getMonth() - joinDate.getMonth();
+
+                // Adjust jika bulan bergabung belum tercapai
+                if (months < 0 || (months === 0 && today.getDate() < joinDate.getDate())) {
+                    years--;
+                }
+
+                console.log(`Employee: ${employee.name}, Join: ${employee.employment.join_date}, Tenure: ${years} years`);
+                return years;
             } catch (e) {
-                console.warn(`Invalid join_date: ${employee.join_date}`);
+                console.warn(`Error processing join_date for ${employee.name}:`, employee.employment.join_date, e);
                 return null;
             }
         })
-        .filter(tenure => tenure !== null);
+        .filter(tenure => tenure !== null && !isNaN(tenure));
 
-    // Kelompokkan sesuai range yang diminta
+    console.log('Tenures calculated:', tenures);
+    console.log('Total employees with valid join_date:', tenures.length);
+
+    // Kelompokkan sesuai range
     const tenureRanges = {
-        '0 tahun': 0,
+        '<1 tahun': 0,
         '1-5 tahun': 0,
         '6-10 tahun': 0,
         '11-15 tahun': 0,
@@ -36,7 +56,7 @@ export function renderTenureChart(data) {
     };
 
     tenures.forEach(tenure => {
-        if (tenure === 0) tenureRanges['0 tahun']++;
+        if (tenure < 1) tenureRanges['<1 tahun']++;
         else if (tenure >= 1 && tenure <= 5) tenureRanges['1-5 tahun']++;
         else if (tenure >= 6 && tenure <= 10) tenureRanges['6-10 tahun']++;
         else if (tenure >= 11 && tenure <= 15) tenureRanges['11-15 tahun']++;
@@ -44,12 +64,14 @@ export function renderTenureChart(data) {
         else if (tenure > 20) tenureRanges['>20 tahun']++;
     });
 
+    console.log('Tenure distribution:', tenureRanges);
+
     const labels = Object.keys(tenureRanges);
     const counts = Object.values(tenureRanges);
 
     // Warna gradient untuk tiap range
     const backgroundColors = [
-        'rgba(147, 197, 253, 0.7)',  // 0 tahun (biru muda)
+        'rgba(147, 197, 253, 0.7)',  // <1 tahun (biru muda)
         'rgba(59, 130, 246, 0.7)',   // 1-5 tahun (biru)
         'rgba(29, 78, 216, 0.7)',    // 6-10 tahun (biru tua)
         'rgba(234, 88, 12, 0.7)',    // 11-15 tahun (oranye)
@@ -74,27 +96,33 @@ export function renderTenureChart(data) {
                 data: counts,
                 backgroundColor: backgroundColors,
                 borderColor: backgroundColors.map(color => color.replace('0.7', '1')),
-                borderWidth: 1,
-                borderRadius: 4
+                borderWidth: 1.5,
+                borderRadius: 6,
+                barPercentage: 0.7,
+                categoryPercentage: 0.8
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
                     display: false
                 },
                 tooltip: {
-                    callbacks: {
-                        label: (context) => {
-                            return `${context.label}: ${context.raw} karyawan`;
-                        }
-                    },
                     backgroundColor: isDark ? chartTheme.tooltipBg.dark : chartTheme.tooltipBg.light,
                     titleColor: isDark ? chartTheme.tooltipTitleColor.dark : chartTheme.tooltipTitleColor.light,
                     bodyColor: isDark ? chartTheme.tooltipBodyColor.dark : chartTheme.tooltipBodyColor.light,
                     borderColor: isDark ? chartTheme.tooltipBorderColor.dark : chartTheme.tooltipBorderColor.light,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    callbacks: {
+                        label: (context) => {
+                            const value = context.raw;
+                            const total = tenures.length;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${context.label}: ${value} karyawan (${percentage}%)`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -107,30 +135,29 @@ export function renderTenureChart(data) {
                     },
                     grid: {
                         color: gridColor
-                    },
-                    title: {
-                        display: true,
-                        text: 'Jumlah Karyawan',
-                        color: textColor
                     }
                 },
                 x: {
                     ticks: {
-                        color: textColor
+                        color: textColor,
+                        font: {
+                            size: 12
+                        }
                     },
                     grid: {
                         color: gridColor
-                    },
-                    title: {
-                        display: true,
-                        text: 'Masa Kerja',
-                        color: textColor
                     }
                 }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
             }
         }
     });
 
     // Atur background canvas
     chartInstances.tenureChart.canvas.style.backgroundColor = isDark ? chartTheme.backgroundCanvas.dark : chartTheme.backgroundCanvas.light;
+
+    console.log('Tenure chart rendered successfully');
 }

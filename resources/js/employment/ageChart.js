@@ -1,24 +1,101 @@
-import { Chart, chartTheme, chartInstances } from './index.js';
+import { Chart } from 'chart.js/auto';
+import { chartTheme, chartInstances } from './../chartConfig.js';
 
 export function renderAgeChart(data) {
+    console.log('renderAgeChart dipanggil dengan data:', data.length, 'records');
+
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
     const gridColor = isDark ? chartTheme.gridColor.dark : chartTheme.gridColor.light;
 
-    // Hitung usia dari birth_date
+    // Hitung usia dari personal.birth_date
     const ages = data
         .map(item => {
-            if (!item.birth_date) return null;
-            const birthDate = new Date(item.birth_date);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
+            if (!item.personal?.birth_date) return null;
+
+            try {
+                const birthDate = new Date(item.personal.birth_date);
+                if (isNaN(birthDate.getTime())) return null;
+
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+
+                if (age < 18 || age > 70) return null;
+
+                return age;
+            } catch (error) {
+                console.warn('Error parsing birth date:', item.personal.birth_date, error);
+                return null;
             }
-            return age;
         })
         .filter(age => age !== null && !isNaN(age));
+
+    console.log('Usia yang berhasil dihitung:', ages.length, 'dari', data.length, 'data');
+
+    // Jika tidak ada data usia yang valid
+    if (ages.length === 0) {
+        console.warn('Tidak ada data usia yang valid untuk ditampilkan');
+        const ctx = document.getElementById('ageChart').getContext('2d');
+
+        if (chartInstances.ageChart) {
+            chartInstances.ageChart.destroy();
+        }
+
+        chartInstances.ageChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['No Data'],
+                datasets: [{
+                    label: 'Tidak ada data usia',
+                    data: [0],
+                    backgroundColor: 'rgba(156, 163, 175, 0.6)',
+                    borderColor: 'rgba(156, 163, 175, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // Tambahkan ini
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Tidak ada data usia yang tersedia',
+                        color: textColor
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    }
+                }
+            }
+        });
+        return;
+    }
 
     // Kelompokkan usia ke range 5 tahun
     const ageGroups = {};
@@ -35,14 +112,15 @@ export function renderAgeChart(data) {
     });
     const totals = labels.map(label => ageGroups[label]);
 
+    console.log('Distribusi usia:', ageGroups);
+
     const ctx = document.getElementById('ageChart').getContext('2d');
 
-    // Hancurkan chart sebelumnya jika ada
     if (chartInstances.ageChart) {
         chartInstances.ageChart.destroy();
     }
 
-    // Buat chart baru
+    // Kembalikan ke konfigurasi tinggi chart seperti sebelumnya
     chartInstances.ageChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -60,6 +138,7 @@ export function renderAgeChart(data) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true, // Kembalikan ke true seperti sebelumnya
             plugins: {
                 legend: {
                     display: false
@@ -100,4 +179,6 @@ export function renderAgeChart(data) {
 
     // Set background canvas
     chartInstances.ageChart.canvas.style.backgroundColor = isDark ? chartTheme.backgroundCanvas.dark : chartTheme.backgroundCanvas.light;
+
+    console.log('Age chart rendered successfully');
 }

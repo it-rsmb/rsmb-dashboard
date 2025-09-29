@@ -27,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'user_id'
     ];
 
     /**
@@ -58,4 +59,49 @@ class User extends Authenticatable
     protected $appends = [
         'profile_photo_url',
     ];
+
+    public function personal()
+    {
+        return $this->hasOne(UserPersonal::class, 'user_id');
+    }
+
+    public function family()
+    {
+        return $this->hasMany(UserFamily::class, 'user_id');
+    }
+
+    public function emergencyContacts()
+    {
+        return $this->hasMany(UserEmergencyContact::class, 'user_id');
+    }
+
+    public function educationFormal()
+    {
+        return $this->hasMany(UserEducationFormal::class, 'user_id');
+    }
+
+    public function educationInformal()
+    {
+        return $this->hasMany(UserEducationInformal::class, 'user_id');
+    }
+
+    public function employment()
+    {
+        return $this->hasOne(UserEmployment::class, 'user_id');
+    }
+
+    public function payrollInfo()
+    {
+        return $this->hasOne(UserPayrollInfo::class, 'user_id');
+    }
+
+    public function customFields()
+    {
+        return $this->hasMany(UserCustomField::class, 'user_id');
+    }
+
+    public function accessRole()
+    {
+        return $this->hasOne(UserAccessRole::class, 'user_id');
+    }
 }
