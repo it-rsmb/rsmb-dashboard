@@ -29,55 +29,56 @@ class EmployeeController extends Controller
         return view('pages/master-data/employees/index');
     }
 
-   public function list()
+public function list()
 {
     if (request()->ajax()) {
-       $users = User::with('personal')
-        ->join('user_employment', 'users.id', '=', 'user_employment.user_id')
-        ->whereNotNull('users.user_id')
-        ->where('user_employment.status', 'Active')
-        ->select([
-            'users.id',
-            'users.user_id',
-            'users.name',
-            'users.email',
-            'users.created_at',
-            'users.updated_at',
-            'user_employment.employee_id',
-            'user_employment.status as employment_status'
-        ]);
+        try {
+            $users = User::with('personal')
+                ->join('user_employment', 'users.id', '=', 'user_employment.user_id')
+                ->whereNotNull('users.user_id')
+                ->where('user_employment.status', 'Active')
+                ->select([
+                    'users.id',
+                    'users.user_id',
+                    'users.name',
+                    'users.email',
+                    'users.created_at',
+                    'users.updated_at',
+                    'user_employment.employee_id'
+                ])
+                ->orderBy('users.created_at', 'desc')
+                ->get();
 
-        return DataTables::of($users)
-            ->addIndexColumn() // Tetap gunakan ini untuk numbering
-            // ->addColumn('action', function($user) {
-            //     return '<div class="btn-group">
-            //         <button class="btn btn-sm btn-info view-btn" data-id="'.$user->id.'">View</button>
-            //         <button class="btn btn-sm btn-primary edit-btn" data-id="'.$user->id.'">Edit</button>
-            //         <button class="btn btn-sm btn-danger delete-btn" data-id="'.$user->id.'">Delete</button>
-            //     </div>';
-            // })
-            ->addColumn('full_name', function($user) {
-                return $user->personal ?
-                    ($user->personal->first_name . ' ' . $user->personal->last_name) :
-                    $user->name;
-            })
-            ->addColumn('employee_id', function($user) {
-                return $user->personal ? $user->employee_id : '-';
-            })
-            ->editColumn('created_at', function($user) {
-                return $user->created_at ? $user->created_at->format('d/m/Y H:i') : '-';
-            })
-            ->editColumn('updated_at', function($user) {
-                return $user->updated_at ? $user->updated_at->format('d/m/Y H:i') : '-';
-            })
-            ->rawColumns(['action'])
-            ->make(true);
+            // Format data untuk client-side processing
+            $formattedData = [];
+            foreach ($users as $user) {
+                $formattedData[] = [
+                    'name' => $user->name ?? 'No Name',
+                    'email' => $user->email ?? 'No Email',
+                    'employee_id' => $user->employee_id ?? 'No ID',
+                    'created_at' => $user->created_at ? $user->created_at->format('d/m/Y H:i') : '-',
+                    'updated_at' => $user->updated_at ? $user->updated_at->format('d/m/Y H:i') : '-',
+                ];
+            }
+
+            // Return hanya data array untuk client-side
+            return response()->json([
+                'data' => $formattedData
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('DataTables Error: ' . $e->getMessage());
+            \Log::error($e->getTraceAsString());
+
+            return response()->json([
+                'data' => [],
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-
+    return response()->json(['error' => 'Not AJAX request'], 400);
 }
-
-
 
 
     private function cleanValue($value)

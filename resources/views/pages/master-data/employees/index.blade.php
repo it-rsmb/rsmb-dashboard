@@ -38,15 +38,15 @@
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="px-4 py-2 text-left">No</th>
-                            <th class="px-4 py-2 text-left">Full Name</th>
+                            <th class="px-4 py-2 text-left">Name</th> <!-- Ganti dari Full Name ke Name -->
                             <th class="px-4 py-2 text-left">Email</th>
                             <th class="px-4 py-2 text-left">ID Pegawai</th>
                             <th class="px-4 py-2 text-left">Created At</th>
                             <th class="px-4 py-2 text-left">Updated At</th>
-                            {{-- <th class="px-4 py-2 text-center">Action</th> --}}
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
+                        <!-- Data akan diisi otomatis oleh DataTables -->
                     </tbody>
                 </table>
             </div>
