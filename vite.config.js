@@ -10,6 +10,7 @@ export default defineConfig({
         'resources/js/employment/index.js',
         'resources/js/employee-attendance/index.js',
         'resources/js/sallary-income/index.js',
+        'resources/js/master-data/payroll/index.js'
       ],
       refresh: true,
     }),
