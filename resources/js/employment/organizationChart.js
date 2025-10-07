@@ -2,7 +2,6 @@ import { Chart } from 'chart.js/auto';
 import { chartTheme, chartInstances } from './../chartConfig.js';
 
 export function renderOrganizationChart(data) {
-    console.log('renderOrganizationChart dipanggil dengan data:', data.length, 'records');
 
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
@@ -15,7 +14,6 @@ export function renderOrganizationChart(data) {
         return acc;
     }, {});
 
-    console.log('Organization distribution:', orgCount);
 
     // Urutkan dari yang terbesar dan ambil top 10
     const sortedOrgs = Object.entries(orgCount)
@@ -125,5 +123,4 @@ export function renderOrganizationChart(data) {
     // Set background canvas
     chartInstances.organizationChart.canvas.style.backgroundColor = isDark ? chartTheme.backgroundCanvas.dark : chartTheme.backgroundCanvas.light;
 
-    console.log('Organization chart rendered successfully dengan tinggi normal');
 }

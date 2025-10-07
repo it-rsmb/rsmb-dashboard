@@ -2,7 +2,6 @@ import { Chart } from 'chart.js/auto';
 import { chartTheme, chartInstances } from './../chartConfig.js';
 
 export function renderAgeChart(data) {
-    console.log('renderAgeChart dipanggil dengan data:', data.length, 'records');
 
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
@@ -35,11 +34,9 @@ export function renderAgeChart(data) {
         })
         .filter(age => age !== null && !isNaN(age));
 
-    console.log('Usia yang berhasil dihitung:', ages.length, 'dari', data.length, 'data');
 
     // Jika tidak ada data usia yang valid
     if (ages.length === 0) {
-        console.warn('Tidak ada data usia yang valid untuk ditampilkan');
         const ctx = document.getElementById('ageChart').getContext('2d');
 
         if (chartInstances.ageChart) {
@@ -112,7 +109,6 @@ export function renderAgeChart(data) {
     });
     const totals = labels.map(label => ageGroups[label]);
 
-    console.log('Distribusi usia:', ageGroups);
 
     const ctx = document.getElementById('ageChart').getContext('2d');
 

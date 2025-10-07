@@ -3,7 +3,6 @@ import { chartTheme, chartInstances } from './../chartConfig.js';
 
 
 export function renderTenureChart(data) {
-    console.log('renderTenureChart dipanggil dengan data:', data.length, 'records');
 
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
@@ -13,14 +12,12 @@ export function renderTenureChart(data) {
     const tenures = data
         .map(employee => {
             if (!employee.employment?.join_date) {
-                console.log('Employee missing join_date:', employee.name);
                 return null;
             }
 
             try {
                 const joinDate = new Date(employee.employment.join_date);
                 if (isNaN(joinDate.getTime())) {
-                    console.warn('Invalid join_date:', employee.employment.join_date, 'for employee:', employee.name);
                     return null;
                 }
 
@@ -33,17 +30,14 @@ export function renderTenureChart(data) {
                     years--;
                 }
 
-                console.log(`Employee: ${employee.name}, Join: ${employee.employment.join_date}, Tenure: ${years} years`);
                 return years;
             } catch (e) {
-                console.warn(`Error processing join_date for ${employee.name}:`, employee.employment.join_date, e);
                 return null;
             }
         })
         .filter(tenure => tenure !== null && !isNaN(tenure));
 
-    console.log('Tenures calculated:', tenures);
-    console.log('Total employees with valid join_date:', tenures.length);
+
 
     // Kelompokkan sesuai range
     const tenureRanges = {
@@ -64,7 +58,7 @@ export function renderTenureChart(data) {
         else if (tenure > 20) tenureRanges['>20 tahun']++;
     });
 
-    console.log('Tenure distribution:', tenureRanges);
+
 
     const labels = Object.keys(tenureRanges);
     const counts = Object.values(tenureRanges);

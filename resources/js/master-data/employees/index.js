@@ -95,9 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         initComplete: function(settings, json) {
-            console.log('=== DATATABLE INIT COMPLETE ===');
-            console.log('Total rows loaded:', this.api().rows().count());
-            console.log('Response data:', json);
+
         }
     });
 });

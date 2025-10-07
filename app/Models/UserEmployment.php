@@ -36,4 +36,9 @@ class UserEmployment extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+     public function payrolls()
+    {
+        return $this->hasMany(Payroll::class, 'employee_id', 'employee_id');
+    }
 }

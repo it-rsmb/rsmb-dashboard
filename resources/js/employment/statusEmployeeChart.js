@@ -2,7 +2,6 @@ import { Chart } from 'chart.js/auto';
 import { chartTheme, chartInstances } from './../chartConfig.js';
 
 export function renderStatusEmployeeChart(data) {
-    console.log('renderStatusEmployeeChart dipanggil dengan data:', data.length, 'records');
 
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
@@ -21,7 +20,6 @@ export function renderStatusEmployeeChart(data) {
         return acc;
     }, {});
 
-    console.log('Status distribution:', statusCount);
 
     // Warna dan label yang telah ditentukan
     const statusLabels = ['Permanent', 'KONTRAK'];
@@ -98,5 +96,4 @@ export function renderStatusEmployeeChart(data) {
     // Set background canvas
     chartInstances.statusEmployeeChart.canvas.style.backgroundColor = isDark ? chartTheme.backgroundCanvas.dark : chartTheme.backgroundCanvas.light;
 
-    console.log('Status Employee chart rendered successfully');
 }

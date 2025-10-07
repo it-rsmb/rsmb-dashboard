@@ -60,7 +60,6 @@ let initialized = false; // Tambahkan flag untuk prevent double initialization
 async function fetchAndDisplayData() {
     // Prevent double request
     if (isFetching) {
-        console.log('Request sudah berjalan, skip...');
         return;
     }
 
@@ -72,7 +71,6 @@ async function fetchAndDisplayData() {
         $loading.show();
         $chartContainer.hide();
 
-        console.log('Memulai request API...');
 
         // Menggunakan AJAX untuk request ke route Laravel
         const response = await new Promise((resolve, reject) => {
@@ -85,7 +83,6 @@ async function fetchAndDisplayData() {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function(response) {
-                    console.log(response);
                     resolve(response);
                 },
                 error: function(xhr, status, error) {
@@ -96,11 +93,9 @@ async function fetchAndDisplayData() {
         });
 
         latestData = response;
-        console.log('Data diterima, jumlah record:', latestData.data);
 
         $loading.hide();
         $chartContainer.removeClass('hidden').fadeIn(100, () => {
-            console.log('Rendering charts...');
             renderGenderChart(latestData);
             renderAgeChart(latestData);
             renderStatusEmployeeChart(latestData);
