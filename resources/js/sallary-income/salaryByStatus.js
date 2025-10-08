@@ -1,271 +1,544 @@
-import { Chart, chartTheme, chartInstances } from './index.js';
+import { latestData, currentPeriod } from './index.js';
+import { Chart } from 'chart.js/auto';
 
-export function renderSalaryByStatusChart(data) {
-    const isDark = localStorage.getItem('dark-mode') === 'true';
-    const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
-    const gridColor = isDark ? chartTheme.gridColor.dark : chartTheme.gridColor.light;
+// Chart instances
+let salaryByStatusChart = null;
+let organizationSalaryChart = null;
+let chartRendered = false;
 
-    // Helper function untuk memastikan nilai number
-    const safeParseNumber = (value) => {
-        if (value === null || value === undefined) return 0;
-        return Number(value) || 0;
+// Cleanup function
+export function cleanupSalaryChart() {
+    console.log('🧹 Cleaning up salary charts...', {
+        statusChartExists: !!salaryByStatusChart,
+        orgChartExists: !!organizationSalaryChart,
+        chartRendered
+    });
+
+    // Cleanup status chart
+    if (salaryByStatusChart) {
+        try {
+            salaryByStatusChart.destroy();
+            console.log('✅ Status chart destroyed successfully');
+        } catch (error) {
+            console.warn('⚠️ Error destroying status chart:', error);
+        }
+        salaryByStatusChart = null;
+    }
+
+    // Cleanup organization chart
+    if (organizationSalaryChart) {
+        try {
+            organizationSalaryChart.destroy();
+            console.log('✅ Organization chart destroyed successfully');
+        } catch (error) {
+            console.warn('⚠️ Error destroying organization chart:', error);
+        }
+        organizationSalaryChart = null;
+    }
+
+    chartRendered = false;
+}
+
+// Main render function untuk status chart
+export function renderSalaryByStatusChart(data, period) {
+    if (!data || data.length === 0) {
+        console.warn('❌ No data available for status chart rendering');
+        return;
+    }
+
+    if (chartRendered) {
+        console.warn('⚠️ Charts already rendered, skipping...');
+        return;
+    }
+
+    try {
+        console.log('🎨 Starting status chart rendering process...');
+
+        const chartData = processStatusChartData(data);
+        renderAverageSalaryChart(chartData);
+
+        console.log('✅ Status chart rendering completed');
+
+    } catch (error) {
+        console.error('❌ Error rendering status chart:', error);
+    }
+}
+
+// Main render function untuk organization chart
+export function renderOrganizationSalaryChart(data, period) {
+    if (!data || data.length === 0) {
+        console.warn('❌ No data available for organization chart rendering');
+        return;
+    }
+
+    try {
+        console.log('🎨 Starting organization chart rendering process...');
+
+        const chartData = processOrganizationChartData(data);
+        renderOrganizationChart(chartData);
+
+        console.log('✅ Organization chart rendering completed');
+        chartRendered = true;
+
+    } catch (error) {
+        console.error('❌ Error rendering organization chart:', error);
+    }
+}
+
+// Process data untuk status chart
+function processStatusChartData(data) {
+    const statusData = {
+        'PEGAWAI TETAP': {
+            count: 0,
+            totalTakeHomePay: 0,
+            totalBasicSalary: 0,
+            totalAllowances: 0,
+            totalDeductions: 0,
+            employees: []
+        },
+        'KONTRAK': {
+            count: 0,
+            totalTakeHomePay: 0,
+            totalBasicSalary: 0,
+            totalAllowances: 0,
+            totalDeductions: 0,
+            employees: []
+        }
     };
 
-    console.log("TEST", data);
+    data.forEach(item => {
+        const originalStatus = item.employment_status || 'Unknown';
+        const status = originalStatus.toLowerCase() === 'permanent' ? 'PEGAWAI TETAP' : 'KONTRAK';
 
+        const takeHomePay = parseFloat(item.take_home_pay) || 0;
+        const basicSalary = parseFloat(item.basic_salary) || 0;
+        const allowances = parseFloat(item.total_allowance) || 0;
+        const deductions = parseFloat(item.total_deduction) || 0;
 
-    // Kelompokkan data berdasarkan status
-    const statusGroups = data.reduce((acc, curr) => {
-        let status = curr.status_employee || 'Unknown';
-        if (['CAPEG', 'KONTRAK 2', 'Contract'].includes(status)) {
-            status = 'Non-Permanent';
+        statusData[status].count++;
+        statusData[status].totalTakeHomePay += takeHomePay;
+        statusData[status].totalBasicSalary += basicSalary;
+        statusData[status].totalAllowances += allowances;
+        statusData[status].totalDeductions += deductions;
+        statusData[status].employees.push({
+            name: item.full_name,
+            takeHomePay: takeHomePay,
+            department: item.organization_name,
+            position: item.job_position,
+            originalStatus: originalStatus
+        });
+    });
+
+    const result = {
+        labels: [],
+        averageTakeHomePay: [],
+        averageBasicSalary: [],
+        averageAllowances: [],
+        averageDeductions: [],
+        employeeCount: [],
+        totalEmployees: data.length,
+        totalTakeHomePay: 0,
+        totalBasicSalary: 0,
+        statusDetails: statusData
+    };
+
+    Object.keys(statusData).forEach(status => {
+        const data = statusData[status];
+        if (data.count > 0) {
+            const avgTakeHomePay = data.totalTakeHomePay / data.count;
+            const avgBasicSalary = data.totalBasicSalary / data.count;
+            const avgAllowances = data.totalAllowances / data.count;
+            const avgDeductions = data.totalDeductions / data.count;
+
+            result.labels.push(status);
+            result.averageTakeHomePay.push(avgTakeHomePay);
+            result.averageBasicSalary.push(avgBasicSalary);
+            result.averageAllowances.push(avgAllowances);
+            result.averageDeductions.push(avgDeductions);
+            result.employeeCount.push(data.count);
+
+            result.totalTakeHomePay += data.totalTakeHomePay;
+            result.totalBasicSalary += data.totalBasicSalary;
         }
+    });
 
-        const gajiBruto = safeParseNumber(curr.gaji_bruto);
+    return result;
+}
 
-        if (!acc[status]) {
-            acc[status] = {
-                totalGajiBruto: 0,
+// Process data untuk organization chart
+function processOrganizationChartData(data) {
+    const organizationData = {};
+
+    data.forEach(item => {
+        const organization = item.organization_name || 'Unknown Department';
+        const takeHomePay = parseFloat(item.take_home_pay) || 0;
+        const basicSalary = parseFloat(item.basic_salary) || 0;
+        const allowances = parseFloat(item.total_allowance) || 0;
+        const deductions = parseFloat(item.total_deduction) || 0;
+
+        if (!organizationData[organization]) {
+            organizationData[organization] = {
                 count: 0,
-                minGaji: Infinity,
-                maxGaji: -Infinity,
+                totalTakeHomePay: 0,
+                totalBasicSalary: 0,
+                totalAllowances: 0,
+                totalDeductions: 0,
+                avgTakeHomePay: 0,
                 employees: []
             };
         }
 
-        acc[status].totalGajiBruto += gajiBruto;
-        acc[status].count++;
-        acc[status].minGaji = Math.min(acc[status].minGaji, gajiBruto);
-        acc[status].maxGaji = Math.max(acc[status].maxGaji, gajiBruto);
-        acc[status].employees.push({
-            name: curr.full_name,
-            original_status: curr.status_employee,
-            basic_salary: safeParseNumber(curr.basic_salary),
-            total_allowance: safeParseNumber(curr.total_allowance),
-            gaji_bruto: gajiBruto
+        organizationData[organization].count++;
+        organizationData[organization].totalTakeHomePay += takeHomePay;
+        organizationData[organization].totalBasicSalary += basicSalary;
+        organizationData[organization].totalAllowances += allowances;
+        organizationData[organization].totalDeductions += deductions;
+        organizationData[organization].employees.push({
+            name: item.full_name,
+            takeHomePay: takeHomePay,
+            position: item.job_position,
+            employmentStatus: item.employment_status
         });
-        return acc;
-    }, {});
+    });
 
-    // Siapkan data untuk chart
-    const labels = Object.keys(statusGroups);
-    const averages = labels.map(status =>
-        Math.round(statusGroups[status].totalGajiBruto / statusGroups[status].count)
-    );
+    // Calculate averages
+    Object.keys(organizationData).forEach(org => {
+        const data = organizationData[org];
+        data.avgTakeHomePay = data.count > 0 ? data.totalTakeHomePay / data.count : 0;
+    });
 
-    const ctx = document.getElementById('salaryByStatusChart').getContext('2d');
+    // Sort by total take home pay (descending) and take top 15
+    const sortedOrganizations = Object.entries(organizationData)
+        .sort(([,a], [,b]) => b.totalTakeHomePay - a.totalTakeHomePay)
+        .slice(0, 15);
 
-    // Hancurkan chart sebelumnya jika ada
-    if (chartInstances.salaryByStatusChart) {
-        chartInstances.salaryByStatusChart.destroy();
+    return {
+        organizations: sortedOrganizations,
+        totalOrganizations: Object.keys(organizationData).length
+    };
+}
+
+// Render average salary by status chart
+function renderAverageSalaryChart(chartData) {
+    const ctx = document.getElementById('salaryByStatusChart');
+    if (!ctx) {
+        console.error('❌ Status chart canvas not found');
+        return;
     }
 
-    // Format mata uang
-    const formatCurrency = (value) => {
+    if (salaryByStatusChart) {
+        console.warn('⚠️ Status chart instance already exists, destroying first...');
+        cleanupSalaryChart();
+    }
+
+    const formatCurrency = (amount) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
+            minimumFractionDigits: 0,
             maximumFractionDigits: 0
-        }).format(value);
+        }).format(amount);
     };
 
-    // Warna chart
-    const backgroundColors = [
-        'rgba(99, 102, 241, 0.8)', // Permanent
-        'rgba(244, 63, 94, 0.8)',  // Non-Permanent
-        'rgba(16, 185, 129, 0.8)', // Lainnya
-    ];
+    console.log('📊 Creating new status chart instance...');
 
-    // Buat chart baru
-    chartInstances.salaryByStatusChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Rata-rata Gaji Bruto',
-                data: averages,
-                backgroundColor: backgroundColors,
-                borderColor: 'rgba(255, 255, 255, 0.2)',
-                borderWidth: 1,
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: isDark ? chartTheme.tooltipBg.dark : chartTheme.tooltipBg.light,
-                    titleColor: isDark ? chartTheme.tooltipTitleColor.dark : chartTheme.tooltipTitleColor.light,
-                    bodyColor: isDark ? chartTheme.tooltipBodyColor.dark : chartTheme.tooltipBodyColor.light,
-                    borderColor: isDark ? chartTheme.tooltipBorderColor.dark : chartTheme.tooltipBorderColor.light,
-                    callbacks: {
-                        label: function(context) {
-                            const status = context.label;
-                            const group = statusGroups[status];
-                            const range = group.maxGaji - group.minGaji;
-
-                            const statusDetails = {};
-                            group.employees.forEach(emp => {
-                                statusDetails[emp.original_status] = (statusDetails[emp.original_status] || 0) + 1;
-                            });
-
-                            const statusDetailText = Object.entries(statusDetails)
-                                .map(([s, count]) => `${s}: ${count} orang`)
-                                .join('\n');
-
-                            return [
-                                `Jumlah Karyawan: ${group.count}`,
-                                `Detail Status:\n${statusDetailText}`,
-                                `Total Gaji Bruto: ${formatCurrency(group.totalGajiBruto)}`,
-                                `Rata-rata: ${formatCurrency(context.raw)}`,
-                                `Min: ${formatCurrency(group.minGaji)}`,
-                                `Max: ${formatCurrency(group.maxGaji)}`,
-                                `Range: ${formatCurrency(range)}`,
-                                `Rasio Basic/Allowance: ${calculateBasicAllowanceRatio(group)}`
-                            ];
+    try {
+        salaryByStatusChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Rata-rata Take Home Pay',
+                        data: chartData.averageTakeHomePay,
+                        backgroundColor: chartData.labels.map(label =>
+                            label === 'PEGAWAI TETAP' ? 'rgba(34, 197, 94, 0.8)' : 'rgba(59, 130, 246, 0.8)'
+                        ),
+                        borderColor: chartData.labels.map(label =>
+                            label === 'PEGAWAI TETAP' ? 'rgba(34, 197, 94, 1)' : 'rgba(59, 130, 246, 1)'
+                        ),
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    // title: {
+                    //     display: true,
+                    //     text: `Rata-rata Take Home Pay by Status - ${formatPeriodDisplay(currentPeriod)}`,
+                    //     font: {
+                    //         size: 16,
+                    //         weight: 'bold'
+                    //     }
+                    // },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw || 0;
+                                return `THP: ${formatCurrency(value)}`;
+                            },
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const status = chartData.labels[index];
+                                const count = chartData.employeeCount[index];
+                                return `Jumlah Karyawan: ${count}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000000) {
+                                    return 'Rp ' + (value / 1000000).toFixed(1) + 'jt';
+                                }
+                                return 'Rp ' + value;
+                            }
                         },
-                        title: function(context) {
-                            return `Status: ${context[0].label}`;
+                        title: {
+                            display: true,
+                            text: 'Rupiah'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Status Karyawan'
                         }
                     }
                 }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: gridColor },
-                    ticks: {
-                        color: textColor,
-                        callback: formatCurrency
-                    }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: textColor }
-                }
             }
+        });
+
+        console.log('✅ Status chart created successfully');
+        updateStatusChartTitle(chartData);
+
+    } catch (error) {
+        console.error('❌ Error creating status chart:', error);
+        salaryByStatusChart = null;
+    }
+}
+
+// Render organization salary chart
+function renderOrganizationChart(chartData) {
+    const ctx = document.getElementById('organizationSalaryChart');
+    if (!ctx) {
+        console.error('❌ Organization chart canvas not found');
+        return;
+    }
+
+    if (organizationSalaryChart) {
+        console.warn('⚠️ Organization chart instance already exists, destroying first...');
+        try {
+            organizationSalaryChart.destroy();
+        } catch (error) {
+            console.warn('⚠️ Error destroying organization chart:', error);
         }
-    });
+        organizationSalaryChart = null;
+    }
 
-    // Styling chart
-    ctx.canvas.style.backgroundColor = isDark ? chartTheme.backgroundCanvas.dark : chartTheme.backgroundCanvas.light;
-    ctx.canvas.style.borderRadius = '12px';
-
-    // Tampilkan total gaji bruto
-    showTotalGajiBruto(data);
-}
-
-// Fungsi untuk menghitung rasio basic salary vs allowance
-function calculateBasicAllowanceRatio(group) {
-    const totalBasic = group.employees.reduce((sum, emp) => sum + emp.basic_salary, 0);
-    const totalAllowance = group.employees.reduce((sum, emp) => sum + emp.total_allowance, 0);
-
-    if (totalAllowance === 0) return 'Tidak ada allowance';
-
-    const ratio = (totalBasic / totalAllowance).toFixed(2);
-    return `${ratio}:1 (Basic:Allowance)`;
-}
-
-// Fungsi untuk menampilkan total gaji bruto
-function showTotalGajiBruto(data) {
-    const existingDisplay = document.getElementById('total-gaji-display');
-    if (existingDisplay) existingDisplay.remove();
-
-    const total = data.reduce((sum, curr) => sum + (curr.gaji_bruto || 0), 0);
-    const totalBasic = data.reduce((sum, curr) => sum + (curr.basic_salary || 0), 0);
-    const totalAllowance = data.reduce((sum, curr) => sum + (curr.total_allowance || 0), 0);
-
-    const formatCurrency = (value) => {
+    const formatCurrency = (amount) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
+            minimumFractionDigits: 0,
             maximumFractionDigits: 0
-        }).format(value);
+        }).format(amount);
     };
 
-    const container = document.createElement('div');
-    container.id = 'total-gaji-display';
-    container.className = 'total-gaji-container';
-    container.innerHTML = `
-        <div class="total-gaji-content">
-            <h3 class="total-title">Ringkasan Gaji</h3>
-            <div class="total-amount">Total Bruto: ${formatCurrency(total)}</div>
-            <div class="breakdown">
-                <span>Basic: ${formatCurrency(totalBasic)}</span>
-                <span>Allowance: ${formatCurrency(totalAllowance)}</span>
+    console.log('📊 Creating new organization chart instance...');
+
+    try {
+        const labels = chartData.organizations.map(([orgName]) => orgName);
+        const totalSalaryData = chartData.organizations.map(([, data]) => data.totalTakeHomePay);
+        const employeeCountData = chartData.organizations.map(([, data]) => data.count);
+
+        organizationSalaryChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Take Home Pay',
+                        data: totalSalaryData,
+                        backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Jumlah Karyawan',
+                        data: employeeCountData,
+                        backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                        borderColor: 'rgba(245, 158, 11, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        type: 'line',
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    // title: {
+                    //     display: true,
+                    //     text: `Total Gaji by Department - ${formatPeriodDisplay(currentPeriod)}`,
+                    //     font: {
+                    //         size: 16,
+                    //         weight: 'bold'
+                    //     }
+                    // },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label || '';
+                                const value = context.raw || 0;
+
+                                if (datasetLabel === 'Total Take Home Pay') {
+                                    return `${datasetLabel}: ${formatCurrency(value)}`;
+                                } else {
+                                    return `${datasetLabel}: ${value} orang`;
+                                }
+                            },
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const orgName = labels[index];
+                                const orgData = chartData.organizations[index][1];
+
+                                return [
+                                    `Rata-rata THP: ${formatCurrency(orgData.avgTakeHomePay)}`,
+                                    `Total Gaji Pokok: ${formatCurrency(orgData.totalBasicSalary)}`,
+                                    `Total Tunjangan: ${formatCurrency(orgData.totalAllowances)}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000000000) {
+                                    return 'Rp ' + (value / 1000000000).toFixed(1) + 'M';
+                                }
+                                if (value >= 1000000) {
+                                    return 'Rp ' + (value / 1000000).toFixed(1) + 'jt';
+                                }
+                                return 'Rp ' + value;
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Total Take Home Pay'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        ticks: {
+                            precision: 0
+                        },
+                        title: {
+                            display: true,
+                            text: 'Jumlah Karyawan'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+
+        console.log('✅ Organization chart created successfully');
+        updateOrganizationChartTitle(chartData);
+
+    } catch (error) {
+        console.error('❌ Error creating organization chart:', error);
+        organizationSalaryChart = null;
+    }
+}
+
+// Update status chart title
+function updateStatusChartTitle(chartData) {
+    const chartHeader = document.querySelector('#statusChartContainer header h2');
+    if (chartHeader) {
+        const tetapCount = chartData.statusDetails['PEGAWAI TETAP']?.count || 0;
+        const kontrakCount = chartData.statusDetails['KONTRAK']?.count || 0;
+
+        chartHeader.innerHTML = `
+            Average Salary by Status
+            <div class="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
+                Total ${chartData.totalEmployees} karyawan
+                (Pegawai Tetap: ${tetapCount}, Kontrak: ${kontrakCount})
             </div>
-            <div class="total-karyawan">${data.length} karyawan</div>
-        </div>
-    `;
-
-    const chartContainer = document.querySelector('#salaryByStatusChart').parentElement;
-    chartContainer.parentNode.insertBefore(container, chartContainer.nextSibling);
-
-    addGajiStyles();
+        `;
+    }
 }
 
-// CSS untuk komponen gaji
-function addGajiStyles() {
-    const styleId = 'total-gaji-styles';
-    if (document.getElementById(styleId)) return;
+// Update organization chart title
+function updateOrganizationChartTitle(chartData) {
+    const chartHeader = document.querySelector('#organizationChartContainer header h2');
+    if (chartHeader) {
+        const totalDepartments = chartData.totalOrganizations;
+        const displayedDepartments = chartData.organizations.length;
 
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-        .total-gaji-container {
-            margin-top: 20px;
-            padding: 16px;
-            background: #f0f5ff;
-            border-radius: 12px;
-            border: 1px solid #dbeafe;
-            transition: all 0.3s ease;
-        }
-
-        .dark .total-gaji-container {
-            background: #1e293b;
-            border-color: #334155;
-        }
-
-        .total-gaji-content {
-            text-align: center;
-        }
-
-        .total-title {
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            color: #1e40af;
-        }
-
-        .dark .total-title {
-            color: #93c5fd;
-        }
-
-        .total-amount {
-            font-size: 20px;
-            font-weight: bold;
-            color: #3b82f6;
-            margin-bottom: 6px;
-        }
-
-        .breakdown {
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            margin-bottom: 6px;
-            font-size: 14px;
-            color: #4b5563;
-        }
-
-        .dark .breakdown {
-            color: #9ca3af;
-        }
-
-        .total-karyawan {
-            font-size: 14px;
-            color: #64748b;
-        }
-    `;
-    document.head.appendChild(style);
+        chartHeader.innerHTML = `
+            Salary by Department
+            <div class="text-sm font-normal text-gray-600 dark:text-gray-400 mt-1">
+                Menampilkan ${displayedDepartments} dari ${totalDepartments} department
+            </div>
+        `;
+    }
 }
+
+// Helper function untuk format period display
+function formatPeriodDisplay(period) {
+    const [year, month] = period.split('-');
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const monthName = monthNames[parseInt(month) - 1];
+    return `${monthName} ${year}`;
+}
+
+// Export utility functions
+export function getChartData() {
+    return {
+        salaryByStatusChart: salaryByStatusChart,
+        organizationSalaryChart: organizationSalaryChart,
+        chartRendered: chartRendered
+    };
+}
+
+// Auto cleanup ketika page unload
+window.addEventListener('beforeunload', cleanupSalaryChart);

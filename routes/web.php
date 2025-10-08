@@ -47,6 +47,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('master-data/payroll', [MasterPayrollController::class, 'index'])->name('payroll');
     Route::post('/upload-excel', [MasterPayrollController::class, 'uploadExcel'])->name('upload.excel');
     Route::get('/payroll/list', [MasterPayrollController::class, 'getPayrollData'])->name('payroll-list');
+    Route::get('/payroll/chart', [MasterPayrollController::class, 'getPayrollChart'])->name('payroll-chart');
     Route::get('/generate-data', [EmployeeController::class, 'generateData'])->name('generateData');
     Route::get('/debug-talenta-response', [EmployeeController::class, 'debugTalentaResponse'])->name('debugTalentaResponse');
     Route::get('/test-multiple-pages', [EmployeeController::class, 'testMultiplePages'])->name('testMultiplePages');

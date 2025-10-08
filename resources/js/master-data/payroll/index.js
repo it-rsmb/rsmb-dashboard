@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             ],
-            order: [[1, 'desc']], // Order by period descending
+            order: [[1, 'asc']], // Order by period descending
             pageLength: 10,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
             responsive: true,

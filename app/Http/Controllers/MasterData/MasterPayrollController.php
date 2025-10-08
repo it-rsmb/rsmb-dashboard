@@ -135,55 +135,78 @@ public function uploadExcel(Request $request)
 }
 
     public function getPayrollData(Request $request)
-{
-    try {
-        $period = $request->input('period');
-        $search = $request->input('search');
+    {
+        try {
+            $period = $request->input('period');
+            $search = $request->input('search');
 
-        $query = Payroll::query()
-            ->leftJoin('user_employment', 'payrolls.employee_id', '=', 'user_employment.employee_id')
-            ->leftJoin('users', 'user_employment.user_id', '=', 'users.id')
-            ->select(
-                'payrolls.*',
-                // 'user_employment.job_position as employment_job_position',
-                'user_employment.organization_name',
-                'user_employment.join_date',
-                'user_employment.employment_status',
-                'users.id as user_id',
-                'users.name as user_name',
-                'users.email as user_email'
-            );
+            $query = Payroll::query()
+                ->leftJoin('user_employment', 'payrolls.employee_id', '=', 'user_employment.employee_id')
+                ->leftJoin('users', 'user_employment.user_id', '=', 'users.id')
+                ->select(
+                    'payrolls.*',
+                    // 'user_employment.job_position as employment_job_position',
+                    'user_employment.organization_name',
+                    'user_employment.join_date',
+                    'user_employment.employment_status',
+                    'users.id as user_id',
+                    'users.name as user_name',
+                    'users.email as user_email'
+                );
 
-        // Filter by period
-        if ($period) {
-            $query->where('payrolls.period', $period);
+            // Filter by period
+            if ($period) {
+                $query->where('payrolls.period', $period);
+            }
+
+            // Search
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('payrolls.employee_id', 'like', "%{$search}%")
+                    ->orWhere('payrolls.full_name', 'like', "%{$search}%")
+                    ->orWhere('user_employment.department', 'like', "%{$search}%")
+                    ->orWhere('user_employment.job_position', 'like', "%{$search}%")
+                    ->orWhere('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.email', 'like', "%{$search}%");
+                });
+            }
+
+            // Order by
+            $query->orderBy('payrolls.period', 'desc')
+                ->orderBy('payrolls.full_name', 'asc');
+
+            $payrolls = $query->get();
+
+            // Return array langsung (bukan wrapped dalam 'data')
+            return response()->json($payrolls);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Search
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('payrolls.employee_id', 'like', "%{$search}%")
-                  ->orWhere('payrolls.full_name', 'like', "%{$search}%")
-                  ->orWhere('user_employment.department', 'like', "%{$search}%")
-                  ->orWhere('user_employment.job_position', 'like', "%{$search}%")
-                  ->orWhere('users.name', 'like', "%{$search}%")
-                  ->orWhere('users.email', 'like', "%{$search}%");
-            });
-        }
-
-        // Order by
-        $query->orderBy('payrolls.period', 'desc')
-              ->orderBy('payrolls.full_name', 'asc');
-
-        $payrolls = $query->get();
-
-        // Return array langsung (bukan wrapped dalam 'data')
-        return response()->json($payrolls);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Error: ' . $e->getMessage()
-        ], 500);
     }
-}
+
+    public function getPayrollChart(Request $request)
+    {
+        $period = $request->input('period');
+
+
+
+        if (!$period) {
+            return response()->json(['error' => 'Periode harus diisi'], 400);
+        }
+
+        try {
+            $data = Payroll::where('period', $period)
+            ->leftJoin('user_employment', 'payrolls.employee_id', '=', 'user_employment.employee_id')
+            ->where('user_employment.organization_name', '!=', 'Direksi')
+            ->get();
+
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
 }
