@@ -34,5 +34,6 @@ export const chartInstances = {
   ageChart: null,
   statusEmployeeChart: null,
   organizationChart: null,
-  tenureChart: null
+  tenureChart: null,
+  tenagaTypeChart: null
 };

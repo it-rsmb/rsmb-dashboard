@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\DataFeed;
 use App\Models\User;
 use App\Models\UserEmployment;
+use Illuminate\Support\Facades\DB;
 
 
 class EmploymentController extends Controller
@@ -19,9 +20,20 @@ class EmploymentController extends Controller
         return view('pages/employment/index');
     }
 
+    public function viewEmployeeNonPermanent()
+    {
+        $data = DB::connection('simrs')
+        ->table('hrd_pegawai as p')
+        ->select('p.*')
+        ->get();
+
+        // return response()->json($data);
+        return view('pages/master-data/employee-non-permanent/index');
+    }
+
     public function list()
     {
-         $users = User::with(['personal', 'employment'])
+         $users = User::with(['personal', 'employment', 'customFields'])
         ->join('user_employment', 'users.id', '=', 'user_employment.user_id')
         ->whereNotNull('users.user_id')
         ->where('user_employment.status', 'Active')
@@ -39,7 +51,7 @@ class EmploymentController extends Controller
         return response()->json($users->get());
     }
 
-     public function getDataEmp(Request $request)
+    public function getDataEmp(Request $request)
     {
         $df = new DataFeed();
 
@@ -51,6 +63,8 @@ class EmploymentController extends Controller
             'data' => $data
         ]);
     }
+
+
 
 
 

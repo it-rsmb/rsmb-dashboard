@@ -93,6 +93,20 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'simrs' => [ // Connection untuk database SIMRS
+            'driver' => 'pgsql',
+            'host' => env('DB_SIMRS_HOST', '127.0.0.1'),
+            'port' => env('DB_SIMRS_PORT', '5432'),
+            'database' => env('DB_SIMRS_DATABASE', 'simrs'),
+            'username' => env('DB_SIMRS_USERNAME', 'postgres'),
+            'password' => env('DB_SIMRS_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'schema' => 'public', // atau schema tertentu jika ada
+            'sslmode' => 'prefer',
+        ],
+
     ],
 
     /*

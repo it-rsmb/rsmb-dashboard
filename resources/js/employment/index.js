@@ -5,6 +5,7 @@ import { renderAgeChart } from './ageChart.js';
 import { renderStatusEmployeeChart } from './statusEmployeeChart.js';
 import { renderOrganizationChart } from './organizationChart.js';
 import { renderTenureChart } from './tenureChart.js';
+import { renderTenagaTypeChart } from './tenagaTypeChart.js';
 
 // Objek untuk menyimpan semua instance chart
 export let latestData = [];
@@ -101,6 +102,7 @@ async function fetchAndDisplayData() {
             renderStatusEmployeeChart(latestData);
             renderOrganizationChart(latestData);
             renderTenureChart(latestData);
+             renderTenagaTypeChart(latestData);
         });
 
     } catch (error) {

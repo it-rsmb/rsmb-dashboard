@@ -52,6 +52,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/debug-talenta-response', [EmployeeController::class, 'debugTalentaResponse'])->name('debugTalentaResponse');
     Route::get('/test-multiple-pages', [EmployeeController::class, 'testMultiplePages'])->name('testMultiplePages');
     Route::get('employment/list', [EmploymentController::class, 'list'])->name('listEmployeee');
+    Route::get('master-data/employee-non-permanent', [EmploymentController::class, 'viewEmployeeNonPermanent'])->name('employee-non-permanent');
 
 
 
