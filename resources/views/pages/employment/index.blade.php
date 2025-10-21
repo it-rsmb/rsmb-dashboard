@@ -71,8 +71,7 @@
 
 
                     <div class="overflow-x-auto">
-                        {{-- <canvas id="tenagaTypeChart" width="400" height="200"></canvas> --}}
-                        TESTING
+                        <canvas id="tenagaTypeChart" width="400" height="200"></canvas>
                     </div>
                 </div>
             </div>
