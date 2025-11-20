@@ -10,6 +10,14 @@ const JENIS_TENAGA_MAPPING = {
     '5': 'Penunjang Medis'
 };
 
+// Mapping jenis dokter
+const JENIS_DOKTER_MAPPING = {
+    '1': 'Spesialis',
+    '2': 'Sub Spesialis',
+    '3': 'Umum',
+    '4': 'Gigi'
+};
+
 export function renderEmployeeNonPermanentChart(nonPermanentData) {
     const ctx = document.getElementById('employeeNonPermanentChart').getContext('2d');
 
@@ -18,8 +26,8 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
         chartInstances.employeeNonPermanentChart.destroy();
     }
 
-    // Proses data non-permanent dengan grouping OUT SOURCING dan kumpulkan data jenis_tenaga
-    const { chartData, tenagaData } = processNonPermanentDataWithTenaga(nonPermanentData);
+    // Proses data non-permanent dengan grouping OUT SOURCING dan kumpulkan data jenis_tenaga + jenis_dokter
+    const { chartData, tenagaData, dokterData } = processNonPermanentDataWithTenagaAndDokter(nonPermanentData);
 
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? '#E5E7EB' : '#374151';
@@ -83,20 +91,39 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
                             const statusIndex = context.dataIndex;
                             const statusLabel = chartData.labels[statusIndex];
                             const tenagaInfo = tenagaData[statusLabel];
+                            const dokterInfo = dokterData[statusLabel];
 
-                            if (!tenagaInfo || Object.keys(tenagaInfo).length === 0) {
-                                return 'Jenis Tenaga: Tidak ada data';
+                            const tooltipLines = [];
+
+                            // Tambahkan informasi jenis tenaga
+                            if (tenagaInfo && Object.keys(tenagaInfo).length > 0) {
+                                tooltipLines.push('Jenis Tenaga:');
+                                const tenagaDetails = Object.entries(tenagaInfo)
+                                    .map(([jenisKey, count]) => {
+                                        const jenisLabel = JENIS_TENAGA_MAPPING[jenisKey] || `Tidak Diketahui (${jenisKey})`;
+                                        return `  • ${jenisLabel}: ${count} orang`;
+                                    })
+                                    .join('\n');
+                                tooltipLines.push(tenagaDetails);
                             }
 
-                            // Buat string detail jenis tenaga dengan label
-                            const tenagaDetails = Object.entries(tenagaInfo)
-                                .map(([jenisKey, count]) => {
-                                    const jenisLabel = JENIS_TENAGA_MAPPING[jenisKey] || `Tidak Diketahui (${jenisKey})`;
-                                    return `${jenisLabel}: ${count} orang`;
-                                })
-                                .join('\n');
+                            // Tambahkan informasi jenis dokter khusus untuk kategori Medis
+                            if (dokterInfo && Object.keys(dokterInfo).length > 0) {
+                                tooltipLines.push(''); // Spacer
+                                tooltipLines.push('🏥 Jenis Dokter:');
+                                const dokterDetails = Object.entries(dokterInfo)
+                                    .sort(([,a], [,b]) => b - a) // Urutkan berdasarkan jumlah tertinggi
+                                    .map(([jenisDokterKey, count]) => {
+                                        const totalInStatus = chartData.values[statusIndex];
+                                        const percentage = totalInStatus > 0 ? ((count / totalInStatus) * 100).toFixed(1) : 0;
+                                        const jenisDokterLabel = JENIS_DOKTER_MAPPING[jenisDokterKey] || `Tidak Diketahui (${jenisDokterKey})`;
+                                        return `  • ${jenisDokterLabel}: ${count} orang (${percentage}%)`;
+                                    })
+                                    .join('\n');
+                                tooltipLines.push(dokterDetails);
+                            }
 
-                            return `Jenis Tenaga:\n${tenagaDetails}`;
+                            return tooltipLines.join('\n');
                         }
                     }
                 }
@@ -164,20 +191,22 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
         }
     });
 
-    // Tampilkan detail status
-    renderStatusDetail(nonPermanentData);
+    // Tampilkan detail status dengan informasi jenis dokter
+    renderStatusDetailWithDokter(nonPermanentData);
 }
 
-// Fungsi untuk memproses data non-permanent dengan mengumpulkan informasi jenis_tenaga
-function processNonPermanentDataWithTenaga(nonPermanentData) {
+// Fungsi untuk memproses data non-permanent dengan mengumpulkan informasi jenis_tenaga dan jenis_dokter
+function processNonPermanentDataWithTenagaAndDokter(nonPermanentData) {
     const statusCount = {};
     const tenagaByStatus = {};
+    const dokterByStatus = {};
 
     if (!nonPermanentData || !Array.isArray(nonPermanentData)) {
         console.warn('Data non-permanent tidak valid atau kosong');
         return {
             chartData: { labels: [], values: [] },
-            tenagaData: {}
+            tenagaData: {},
+            dokterData: {}
         };
     }
 
@@ -198,6 +227,17 @@ function processNonPermanentDataWithTenaga(nonPermanentData) {
             tenagaByStatus[status] = {};
         }
         tenagaByStatus[status][jenisTenagaKey] = (tenagaByStatus[status][jenisTenagaKey] || 0) + 1;
+
+        // Kumpulkan data jenis dokter khusus untuk kategori Medis (jenis_tenaga = 3)
+        if (jenisTenagaKey === '3') {
+            const jenisDokterKey = getJenisDokterFromEmployee(employee);
+            if (jenisDokterKey) {
+                if (!dokterByStatus[status]) {
+                    dokterByStatus[status] = {};
+                }
+                dokterByStatus[status][jenisDokterKey] = (dokterByStatus[status][jenisDokterKey] || 0) + 1;
+            }
+        }
     });
 
     // Konversi ke format chart dan urutkan berdasarkan jumlah (descending)
@@ -209,16 +249,37 @@ function processNonPermanentDataWithTenaga(nonPermanentData) {
 
     return {
         chartData: { labels, values },
-        tenagaData: tenagaByStatus
+        tenagaData: tenagaByStatus,
+        dokterData: dokterByStatus
     };
 }
 
-// Fungsi untuk menampilkan detail status
-function renderStatusDetail(nonPermanentData) {
+// Fungsi untuk mengambil data Jenis Dokter dari employee data
+function getJenisDokterFromEmployee(employee) {
+    // Cek langsung di field jenis_dokter (bukan di custom_fields)
+    if (employee.jenis_dokter && employee.jenis_dokter.toString().trim() !== '') {
+        return employee.jenis_dokter.toString();
+    }
+
+    // Fallback: cek di custom_fields jika ada
+    if (employee.custom_fields && Array.isArray(employee.custom_fields)) {
+        const jenisDokterField = employee.custom_fields.find(field =>
+            field.field_name === 'Jenis Dokter'
+        );
+        if (jenisDokterField && jenisDokterField.value && jenisDokterField.value.trim() !== '') {
+            return jenisDokterField.value.trim();
+        }
+    }
+
+    return null;
+}
+
+// Fungsi untuk menampilkan detail status dengan informasi jenis dokter
+function renderStatusDetailWithDokter(nonPermanentData) {
     const container = document.getElementById('statusListContainer');
     if (!container) return;
 
-    const { chartData, tenagaData } = processNonPermanentDataWithTenaga(nonPermanentData);
+    const { chartData, tenagaData, dokterData } = processNonPermanentDataWithTenagaAndDokter(nonPermanentData);
     const totalEmployees = chartData.values.reduce((sum, val) => sum + val, 0);
 
     // Update total summary
@@ -236,7 +297,7 @@ function renderStatusDetail(nonPermanentData) {
         return;
     }
 
-    // Generate HTML untuk setiap status dengan informasi jenis tenaga
+    // Generate HTML untuk setiap status dengan informasi jenis tenaga dan jenis dokter
     const statusItems = chartData.labels.map((label, index) => {
         const count = chartData.values[index];
         const percentage = totalEmployees > 0 ? ((count / totalEmployees) * 100).toFixed(1) : 0;
@@ -244,12 +305,23 @@ function renderStatusDetail(nonPermanentData) {
         const color = colors[index];
 
         const tenagaInfo = tenagaData[label] || {};
+        const dokterInfo = dokterData[label] || {};
 
         // Format detail jenis tenaga untuk display
         const tenagaDetails = Object.entries(tenagaInfo)
             .map(([jenisKey, jumlah]) => {
                 const jenisLabel = JENIS_TENAGA_MAPPING[jenisKey] || `Tidak Diketahui (${jenisKey})`;
-                return `${jenisLabel}: ${jumlah}`;
+                const jenisPercentage = count > 0 ? ((jumlah / count) * 100).toFixed(1) : 0;
+                return `${jenisLabel}: ${jumlah} (${jenisPercentage}%)`;
+            })
+            .join(', ');
+
+        // Format detail jenis dokter untuk display
+        const dokterDetails = Object.entries(dokterInfo)
+            .map(([jenisDokterKey, jumlah]) => {
+                const dokterPercentage = count > 0 ? ((jumlah / count) * 100).toFixed(1) : 0;
+                const jenisDokterLabel = JENIS_DOKTER_MAPPING[jenisDokterKey] || `Tidak Diketahui (${jenisDokterKey})`;
+                return `${jenisDokterLabel}: ${jumlah} (${dokterPercentage}%)`;
             })
             .join(', ');
 
@@ -265,10 +337,18 @@ function renderStatusDetail(nonPermanentData) {
                         <p class="text-xs text-gray-500 dark:text-gray-400">${percentage}%</p>
                     </div>
                 </div>
+
                 ${tenagaDetails ? `
                     <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
                         <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Jenis Tenaga:</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400">${tenagaDetails}</p>
+                    </div>
+                ` : ''}
+
+                ${dokterDetails ? `
+                    <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                        <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">🏥 Jenis Dokter:</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${dokterDetails}</p>
                     </div>
                 ` : ''}
             </div>
@@ -278,7 +358,7 @@ function renderStatusDetail(nonPermanentData) {
     container.innerHTML = statusItems;
 }
 
-// Fungsi untuk generate warna yang konsisten
+// Fungsi untuk generate warna yang konsisten (tetap sama)
 function generateColors(count) {
     const colorPalettes = [
         'rgba(54, 162, 235, 0.8)',    // Blue
@@ -310,7 +390,7 @@ function generateColors(count) {
 // Fungsi untuk update chart dengan data baru
 export function updateEmployeeNonPermanentChart(nonPermanentData) {
     if (chartInstances.employeeNonPermanentChart) {
-        const { chartData, tenagaData } = processNonPermanentDataWithTenaga(nonPermanentData);
+        const { chartData, tenagaData, dokterData } = processNonPermanentDataWithTenagaAndDokter(nonPermanentData);
 
         chartInstances.employeeNonPermanentChart.data.labels = chartData.labels;
         chartInstances.employeeNonPermanentChart.data.datasets[0].data = chartData.values;
@@ -324,8 +404,8 @@ export function updateEmployeeNonPermanentChart(nonPermanentData) {
         chartInstances.employeeNonPermanentChart.update('none');
     }
 
-    // Update detail status
-    renderStatusDetail(nonPermanentData);
+    // Update detail status dengan informasi dokter
+    renderStatusDetailWithDokter(nonPermanentData);
 }
 
 // Fungsi untuk menghancurkan chart
@@ -337,4 +417,9 @@ export function destroyEmployeeNonPermanentChart() {
 }
 
 // Export fungsi utilitas untuk digunakan di tempat lain
-export { processNonPermanentDataWithTenaga as processNonPermanentData, renderStatusDetail, JENIS_TENAGA_MAPPING };
+export {
+    processNonPermanentDataWithTenagaAndDokter as processNonPermanentData,
+    renderStatusDetailWithDokter as renderStatusDetail,
+    JENIS_TENAGA_MAPPING,
+    JENIS_DOKTER_MAPPING
+};
