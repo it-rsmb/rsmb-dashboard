@@ -6,24 +6,81 @@ export function renderTenagaTypeChart(data) {
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
 
-    // Hitung jumlah berdasarkan Jenis Tenaga
-    const tenagaTypeCount = data.reduce((acc, curr) => {
+    // Struktur data baru untuk menyimpan breakdown per employment_status dan gender
+    const tenagaTypeData = data.reduce((acc, curr) => {
         // Cari field "Jenis Tenaga" dalam custom_fields
         const jenisTenagaField = curr.custom_fields?.find(field =>
             field.field_name === 'Jenis Tenaga'
         );
 
         const jenisTenaga = jenisTenagaField?.value || 'Tidak Terdefinisi';
-
-        // Normalisasi nilai kosong
         const normalizedType = jenisTenaga.trim() === '' ? 'Tidak Terdefinisi' : jenisTenaga;
 
-        acc[normalizedType] = (acc[normalizedType] || 0) + 1;
+        // Ambil employment_status dari objek employment dan normalisasi
+        let employmentStatus = curr.employment?.employment_status || 'Tidak Diketahui';
+
+        // Normalisasi nilai status untuk konsistensi
+        if (employmentStatus.includes('CAPEG') || employmentStatus.includes('Capeg')) {
+            employmentStatus = 'CAPEG';
+        } else if (employmentStatus.includes('KONTRAK') || employmentStatus.includes('Kontrak')) {
+            employmentStatus = 'KONTRAK 2';
+        } else if (employmentStatus.includes('Permanent') || employmentStatus.includes('PERMANENT')) {
+            employmentStatus = 'Permanent';
+        }
+
+        // Ambil gender dari personal data
+        const gender = curr.personal?.gender || 'Tidak Diketahui';
+        const normalizedGender = gender === 'Male' ? 'Laki-laki' :
+                               gender === 'Female' ? 'Perempuan' :
+                               gender;
+
+        // Inisialisasi jika belum ada
+        if (!acc[normalizedType]) {
+            acc[normalizedType] = {
+                total: 0,
+                breakdown: {
+                    'Permanent': 0,
+                    'CAPEG': 0,
+                    'KONTRAK 2': 0
+                },
+                gender: {
+                    'Laki-laki': 0,
+                    'Perempuan': 0
+                }
+            };
+        }
+
+        // Update total dan breakdown
+        acc[normalizedType].total++;
+
+        // Update employment status breakdown
+        if (['Permanent', 'CAPEG', 'KONTRAK 2'].includes(employmentStatus)) {
+            acc[normalizedType].breakdown[employmentStatus]++;
+        } else {
+            if (!acc[normalizedType].breakdown['Lainnya']) {
+                acc[normalizedType].breakdown['Lainnya'] = 0;
+            }
+            acc[normalizedType].breakdown['Lainnya']++;
+        }
+
+        // Update gender breakdown
+        if (['Laki-laki', 'Perempuan'].includes(normalizedGender)) {
+            acc[normalizedType].gender[normalizedGender]++;
+        } else {
+            if (!acc[normalizedType].gender['Lainnya']) {
+                acc[normalizedType].gender['Lainnya'] = 0;
+            }
+            acc[normalizedType].gender['Lainnya']++;
+        }
+
         return acc;
     }, {});
 
-    const labels = Object.keys(tenagaTypeCount);
-    const totals = Object.values(tenagaTypeCount);
+    const labels = Object.keys(tenagaTypeData);
+    const totals = labels.map(label => tenagaTypeData[label].total);
+    const breakdowns = labels.map(label => tenagaTypeData[label].breakdown);
+    const genderBreakdowns = labels.map(label => tenagaTypeData[label].gender);
+
     const ctx = document.getElementById('tenagaTypeChart').getContext('2d');
 
     // Hancurkan chart sebelumnya jika ada
@@ -31,7 +88,7 @@ export function renderTenagaTypeChart(data) {
         chartInstances.tenagaTypeChart.destroy();
     }
 
-    // Warna untuk chart (bisa disesuaikan)
+    // Warna untuk chart
     const backgroundColors = [
         'rgba(99, 102, 241, 0.7)',    // Indigo
         'rgba(248, 113, 113, 0.7)',   // Red
@@ -44,7 +101,7 @@ export function renderTenagaTypeChart(data) {
 
     // Buat chart baru
     chartInstances.tenagaTypeChart = new Chart(ctx, {
-        type: 'bar', // Bisa diganti 'pie', 'doughnut', dll sesuai preferensi
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [{
@@ -59,7 +116,7 @@ export function renderTenagaTypeChart(data) {
             responsive: true,
             plugins: {
                 legend: {
-                    display: false, // Sembunyikan legend untuk bar chart
+                    display: false,
                 },
                 tooltip: {
                     backgroundColor: isDark ? chartTheme.tooltipBg.dark : chartTheme.tooltipBg.light,
@@ -71,7 +128,45 @@ export function renderTenagaTypeChart(data) {
                         label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = ((context.parsed.y / total) * 100).toFixed(1);
-                            return `${context.parsed.y} karyawan (${percentage}%)`;
+
+                            // Ambil breakdown data untuk bar ini
+                            const labelIndex = context.dataIndex;
+                            const breakdown = breakdowns[labelIndex];
+                            const genderBreakdown = genderBreakdowns[labelIndex];
+
+                            // Buat array untuk tooltip lines
+                            const tooltipLines = [
+                                `Total: ${context.parsed.y} karyawan (${percentage}%)`,
+                                '',
+                                '📊 Status Karyawan:'
+                            ];
+
+                            // Urutkan status: Permanent, CAPEG, KONTRAK 2, Lainnya
+                            const orderedStatuses = ['Permanent', 'CAPEG', 'KONTRAK 2', 'Lainnya'];
+
+                            orderedStatuses.forEach(status => {
+                                if (breakdown[status] > 0) {
+                                    const statusPercentage = ((breakdown[status] / context.parsed.y) * 100).toFixed(1);
+                                    tooltipLines.push(`  • ${status}: ${breakdown[status]} (${statusPercentage}%)`);
+                                }
+                            });
+
+                            tooltipLines.push('', '👥 Jenis Kelamin:');
+
+                            // Tampilkan breakdown gender
+                            const orderedGenders = ['Laki-laki', 'Perempuan', 'Lainnya'];
+
+                            orderedGenders.forEach(gender => {
+                                if (genderBreakdown[gender] > 0) {
+                                    const genderPercentage = ((genderBreakdown[gender] / context.parsed.y) * 100).toFixed(1);
+                                    tooltipLines.push(`  • ${gender}: ${genderBreakdown[gender]} (${genderPercentage}%)`);
+                                }
+                            });
+
+                            return tooltipLines;
+                        },
+                        title: function(tooltipItems) {
+                            return `Jenis Tenaga: ${tooltipItems[0].label}`;
                         }
                     }
                 }

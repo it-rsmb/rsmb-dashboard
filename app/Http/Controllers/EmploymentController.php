@@ -106,7 +106,8 @@ class EmploymentController extends Controller
         q.bidang_reff,
         hk.nama_hubker,
         a.fakta_integritas,
-        q.jenis_unit
+        q.jenis_unit,
+        a.jenis_tenaga
     ")
     ->leftJoin('hrd_unit_kerja as c', 'c.id', '=', 'a.unit_kerja')
     ->leftJoin('hrd_jabatan as d', 'd.id', '=', 'a.jabatan')

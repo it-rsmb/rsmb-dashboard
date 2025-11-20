@@ -1,6 +1,15 @@
 import { chartInstances } from './../chartConfig.js';
 import { Chart } from 'chart.js/auto';
 
+// Mapping jenis tenaga
+const JENIS_TENAGA_MAPPING = {
+    '1': 'Non Medis',
+    '2': 'Perawat',
+    '3': 'Medis',
+    '4': 'Bidan',
+    '5': 'Penunjang Medis'
+};
+
 export function renderEmployeeNonPermanentChart(nonPermanentData) {
     const ctx = document.getElementById('employeeNonPermanentChart').getContext('2d');
 
@@ -9,8 +18,8 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
         chartInstances.employeeNonPermanentChart.destroy();
     }
 
-    // Proses data non-permanent dengan grouping OUT SOURCING
-    const chartData = processNonPermanentData(nonPermanentData);
+    // Proses data non-permanent dengan grouping OUT SOURCING dan kumpulkan data jenis_tenaga
+    const { chartData, tenagaData } = processNonPermanentDataWithTenaga(nonPermanentData);
 
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? '#E5E7EB' : '#374151';
@@ -38,7 +47,7 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: false // Sembunyikan legend karena kita pakai label langsung
+                    display: false
                 },
                 title: {
                     display: true,
@@ -69,6 +78,25 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
                             const total = chartData.values.reduce((sum, val) => sum + val, 0);
                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                             return `Jumlah: ${value} orang (${percentage}%)`;
+                        },
+                        afterLabel: function(context) {
+                            const statusIndex = context.dataIndex;
+                            const statusLabel = chartData.labels[statusIndex];
+                            const tenagaInfo = tenagaData[statusLabel];
+
+                            if (!tenagaInfo || Object.keys(tenagaInfo).length === 0) {
+                                return 'Jenis Tenaga: Tidak ada data';
+                            }
+
+                            // Buat string detail jenis tenaga dengan label
+                            const tenagaDetails = Object.entries(tenagaInfo)
+                                .map(([jenisKey, count]) => {
+                                    const jenisLabel = JENIS_TENAGA_MAPPING[jenisKey] || `Tidak Diketahui (${jenisKey})`;
+                                    return `${jenisLabel}: ${count} orang`;
+                                })
+                                .join('\n');
+
+                            return `Jenis Tenaga:\n${tenagaDetails}`;
                         }
                     }
                 }
@@ -136,28 +164,40 @@ export function renderEmployeeNonPermanentChart(nonPermanentData) {
         }
     });
 
-    // Tambahkan juga pie chart untuk alternatif view
-    renderPieChart(nonPermanentData);
+    // Tampilkan detail status
+    renderStatusDetail(nonPermanentData);
 }
 
-// Fungsi untuk memproses data non-permanent dengan grouping OUT SOURCING
-function processNonPermanentData(nonPermanentData) {
+// Fungsi untuk memproses data non-permanent dengan mengumpulkan informasi jenis_tenaga
+function processNonPermanentDataWithTenaga(nonPermanentData) {
     const statusCount = {};
+    const tenagaByStatus = {};
 
     if (!nonPermanentData || !Array.isArray(nonPermanentData)) {
         console.warn('Data non-permanent tidak valid atau kosong');
-        return { labels: ['Tidak ada data'], values: [0] };
+        return {
+            chartData: { labels: [], values: [] },
+            tenagaData: {}
+        };
     }
 
     nonPermanentData.forEach(employee => {
         let status = employee.nama_status || 'Tidak Diketahui';
+        const jenisTenagaKey = employee.jenis_tenaga ? employee.jenis_tenaga.toString() : '0';
 
         // Grouping semua OUT SOURCING menjadi satu kategori
         if (status.includes('OUT SOURCING')) {
             status = 'OUT SOURCING';
         }
 
+        // Hitung jumlah per status
         statusCount[status] = (statusCount[status] || 0) + 1;
+
+        // Kumpulkan data jenis tenaga per status
+        if (!tenagaByStatus[status]) {
+            tenagaByStatus[status] = {};
+        }
+        tenagaByStatus[status][jenisTenagaKey] = (tenagaByStatus[status][jenisTenagaKey] || 0) + 1;
     });
 
     // Konversi ke format chart dan urutkan berdasarkan jumlah (descending)
@@ -167,7 +207,75 @@ function processNonPermanentData(nonPermanentData) {
     const labels = sortedEntries.map(([label]) => label);
     const values = sortedEntries.map(([,value]) => value);
 
-    return { labels, values, rawData: statusCount };
+    return {
+        chartData: { labels, values },
+        tenagaData: tenagaByStatus
+    };
+}
+
+// Fungsi untuk menampilkan detail status
+function renderStatusDetail(nonPermanentData) {
+    const container = document.getElementById('statusListContainer');
+    if (!container) return;
+
+    const { chartData, tenagaData } = processNonPermanentDataWithTenaga(nonPermanentData);
+    const totalEmployees = chartData.values.reduce((sum, val) => sum + val, 0);
+
+    // Update total summary
+    document.getElementById('totalNonPermanent').textContent = totalEmployees;
+
+    if (chartData.labels.length === 0 || totalEmployees === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                <svg class="mx-auto w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p>Tidak ada data pegawai non-permanent</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Generate HTML untuk setiap status dengan informasi jenis tenaga
+    const statusItems = chartData.labels.map((label, index) => {
+        const count = chartData.values[index];
+        const percentage = totalEmployees > 0 ? ((count / totalEmployees) * 100).toFixed(1) : 0;
+        const colors = generateColors(chartData.labels.length);
+        const color = colors[index];
+
+        const tenagaInfo = tenagaData[label] || {};
+
+        // Format detail jenis tenaga untuk display
+        const tenagaDetails = Object.entries(tenagaInfo)
+            .map(([jenisKey, jumlah]) => {
+                const jenisLabel = JENIS_TENAGA_MAPPING[jenisKey] || `Tidak Diketahui (${jenisKey})`;
+                return `${jenisLabel}: ${jumlah}`;
+            })
+            .join(', ');
+
+        return `
+            <div class="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 rounded-full" style="background-color: ${color}"></div>
+                        <p class="font-medium text-gray-800 dark:text-gray-200 text-sm">${label}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-gray-900 dark:text-white text-lg">${count}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${percentage}%</p>
+                    </div>
+                </div>
+                ${tenagaDetails ? `
+                    <div class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                        <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Jenis Tenaga:</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">${tenagaDetails}</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = statusItems;
 }
 
 // Fungsi untuk generate warna yang konsisten
@@ -185,7 +293,6 @@ function generateColors(count) {
         'rgba(210, 105, 30, 0.8)'     // Chocolate
     ];
 
-    // Jika butuh lebih banyak warna, generate secara dinamis
     if (count > colorPalettes.length) {
         const additionalColors = [];
         for (let i = colorPalettes.length; i < count; i++) {
@@ -200,95 +307,10 @@ function generateColors(count) {
     return colorPalettes.slice(0, count);
 }
 
-// Fungsi untuk membuat pie chart (alternatif view)
-function renderPieChart(nonPermanentData) {
-    const pieCtx = document.getElementById('employeeNonPermanentPieChart');
-    if (!pieCtx) return;
-
-    if (chartInstances.employeeNonPermanentPieChart) {
-        chartInstances.employeeNonPermanentPieChart.destroy();
-    }
-
-    const chartData = processNonPermanentData(nonPermanentData);
-    const isDark = localStorage.getItem('dark-mode') === 'true';
-    const textColor = isDark ? '#E5E7EB' : '#374151';
-
-    const backgroundColors = generateColors(chartData.labels.length);
-
-    chartInstances.employeeNonPermanentPieChart = new Chart(pieCtx.getContext('2d'), {
-        type: 'pie',
-        data: {
-            labels: chartData.labels,
-            datasets: [{
-                data: chartData.values,
-                backgroundColor: backgroundColors,
-                borderColor: backgroundColors.map(color => color.replace('0.8', '1')),
-                borderWidth: 2,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        color: textColor,
-                        font: {
-                            size: 11,
-                            family: "'Inter', sans-serif"
-                        },
-                        padding: 15,
-                        usePointStyle: true
-                    }
-                },
-                title: {
-                    display: true,
-                    text: 'Persentase Pegawai Non-Permanent',
-                    color: textColor,
-                    font: {
-                        size: 14,
-                        weight: 'bold'
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label;
-                            const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} orang (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Fungsi untuk mendapatkan detail data OUT SOURCING
-export function getOutsourcingDetail(nonPermanentData) {
-    if (!nonPermanentData || !Array.isArray(nonPermanentData)) {
-        return {};
-    }
-
-    const outsourcingDetail = {};
-
-    nonPermanentData.forEach(employee => {
-        const status = employee.nama_status;
-        if (status && status.includes('OUT SOURCING')) {
-            outsourcingDetail[status] = (outsourcingDetail[status] || 0) + 1;
-        }
-    });
-
-    return outsourcingDetail;
-}
-
 // Fungsi untuk update chart dengan data baru
 export function updateEmployeeNonPermanentChart(nonPermanentData) {
     if (chartInstances.employeeNonPermanentChart) {
-        const chartData = processNonPermanentData(nonPermanentData);
+        const { chartData, tenagaData } = processNonPermanentDataWithTenaga(nonPermanentData);
 
         chartInstances.employeeNonPermanentChart.data.labels = chartData.labels;
         chartInstances.employeeNonPermanentChart.data.datasets[0].data = chartData.values;
@@ -302,10 +324,8 @@ export function updateEmployeeNonPermanentChart(nonPermanentData) {
         chartInstances.employeeNonPermanentChart.update('none');
     }
 
-    // Update pie chart juga jika ada
-    if (chartInstances.employeeNonPermanentPieChart) {
-        renderPieChart(nonPermanentData);
-    }
+    // Update detail status
+    renderStatusDetail(nonPermanentData);
 }
 
 // Fungsi untuk menghancurkan chart
@@ -314,11 +334,7 @@ export function destroyEmployeeNonPermanentChart() {
         chartInstances.employeeNonPermanentChart.destroy();
         chartInstances.employeeNonPermanentChart = null;
     }
-    if (chartInstances.employeeNonPermanentPieChart) {
-        chartInstances.employeeNonPermanentPieChart.destroy();
-        chartInstances.employeeNonPermanentPieChart = null;
-    }
 }
 
 // Export fungsi utilitas untuk digunakan di tempat lain
-export { processNonPermanentData };
+export { processNonPermanentDataWithTenaga as processNonPermanentData, renderStatusDetail, JENIS_TENAGA_MAPPING };

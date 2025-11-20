@@ -71,6 +71,7 @@
             </div>
 
             <!-- Pegawai Non-Permanent Section -->
+            <!-- Pegawai Non-Permanent Section -->
            <!-- Pegawai Non-Permanent Section -->
 <div class="col-span-full bg-white dark:bg-gray-800 shadow-xs rounded-xl">
     <header class="px-5 py-4 border-b border-gray-100 dark:border-gray-700/60">
@@ -88,35 +89,46 @@
                 </div>
             </div>
 
-            <!-- Pie Chart -->
+            <!-- Detail Status (Menggantikan Pie Chart) -->
             <div>
                 <h3 class="text-md font-semibold text-gray-800 dark:text-gray-100 mb-4 text-center">
-                    Persentase Pegawai Non-Permanent
+                    Detail Jumlah Pegawai per Status
                 </h3>
-                <div class="h-80">
-                    <canvas id="employeeNonPermanentPieChart"></canvas>
+                <div class="h-80 overflow-y-auto">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 gap-4 mb-6">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                                        Total Non-Permanent
+                                    </p>
+                                    <p class="text-2xl font-bold text-blue-900 dark:text-blue-100" id="totalNonPermanent">
+                                        0
+                                    </p>
+                                </div>
+                                <div class="text-blue-600 dark:text-blue-400">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status List -->
+                    <div class="space-y-3" id="statusListContainer">
+                        <!-- Data akan diisi oleh JavaScript -->
+                        <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                            <svg class="mx-auto w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <p>Loading data...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Summary Stats -->
-        {{-- <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
-                <div class="text-blue-600 dark:text-blue-400 text-sm font-medium">Total Non-Permanent</div>
-                <div id="totalNonPermanent" class="text-2xl font-bold text-blue-700 dark:text-blue-300">0</div>
-                <div class="text-blue-600 dark:text-blue-400 text-xs">Jumlah Pegawai</div>
-            </div>
-            <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
-                <div class="text-green-600 dark:text-green-400 text-sm font-medium">Status OUTSOURCING</div>
-                <div id="totalOutsourcing" class="text-2xl font-bold text-green-700 dark:text-green-300">0</div>
-                <div class="text-green-600 dark:text-green-400 text-xs">Pegawai Outsourcing</div>
-            </div>
-            <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
-                <div class="text-purple-600 dark:text-purple-400 text-sm font-medium">Status Lainnya</div>
-                <div id="totalOtherStatus" class="text-2xl font-bold text-purple-700 dark:text-purple-300">0</div>
-                <div class="text-purple-600 dark:text-purple-400 text-xs">Status Lain</div>
-            </div>
-        </div> --}}
     </div>
 </div>
 

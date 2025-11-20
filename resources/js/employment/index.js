@@ -116,10 +116,10 @@ async function fetchAndDisplayData() {
         latestData = employmentData || [];
         latestNonPermanentData = nonPermanentData || [];
 
-        console.log('Data fetched successfully:', {
-            employment: latestData.length,
-            nonPermanent: latestNonPermanentData.length
-        });
+        // console.log('Data fetched successfully:', {
+        //     employment: latestData.length,
+        //     nonPermanent: latestNonPermanentData.length
+        // });
 
         $loading.hide();
 
@@ -237,8 +237,6 @@ export function updateNonPermanentSummary(nonPermanentData) {
     if (totalNonPermanentElem) totalNonPermanentElem.textContent = totalNonPermanent;
     if (totalOutsourcingElem) totalOutsourcingElem.textContent = totalOutsourcing;
     if (totalOtherStatusElem) totalOtherStatusElem.textContent = totalOtherStatus;
-
-    console.log('Summary updated:', { totalNonPermanent, totalOutsourcing, totalOtherStatus });
 }
 
 // Kemudian panggil setelah render chart
