@@ -6,7 +6,7 @@ export function renderTenagaTypeChart(data) {
     const isDark = localStorage.getItem('dark-mode') === 'true';
     const textColor = isDark ? chartTheme.textColor.dark : chartTheme.textColor.light;
 
-    // Struktur data baru untuk menyimpan breakdown per employment_status dan gender
+    // Struktur data baru untuk menyimpan breakdown per employment_status, gender, dan jenis dokter
     const tenagaTypeData = data.reduce((acc, curr) => {
         // Cari field "Jenis Tenaga" dalam custom_fields
         const jenisTenagaField = curr.custom_fields?.find(field =>
@@ -34,6 +34,12 @@ export function renderTenagaTypeChart(data) {
                                gender === 'Female' ? 'Perempuan' :
                                gender;
 
+        // Ambil Jenis Dokter dari custom_fields (khusus untuk tenaga medis)
+        const jenisDokterField = curr.custom_fields?.find(field =>
+            field.field_name === 'Jenis Dokter'
+        );
+        const jenisDokter = jenisDokterField?.value || '';
+
         // Inisialisasi jika belum ada
         if (!acc[normalizedType]) {
             acc[normalizedType] = {
@@ -46,7 +52,8 @@ export function renderTenagaTypeChart(data) {
                 gender: {
                     'Laki-laki': 0,
                     'Perempuan': 0
-                }
+                },
+                jenisDokter: {} // Untuk menyimpan breakdown jenis dokter
             };
         }
 
@@ -73,6 +80,13 @@ export function renderTenagaTypeChart(data) {
             acc[normalizedType].gender['Lainnya']++;
         }
 
+        // Update jenis dokter breakdown (hanya untuk jenis tenaga medis)
+        if (isTenagaMedis(normalizedType) && jenisDokter && jenisDokter.trim() !== '') {
+            const normalizedJenisDokter = jenisDokter.trim();
+            acc[normalizedType].jenisDokter[normalizedJenisDokter] =
+                (acc[normalizedType].jenisDokter[normalizedJenisDokter] || 0) + 1;
+        }
+
         return acc;
     }, {});
 
@@ -80,6 +94,7 @@ export function renderTenagaTypeChart(data) {
     const totals = labels.map(label => tenagaTypeData[label].total);
     const breakdowns = labels.map(label => tenagaTypeData[label].breakdown);
     const genderBreakdowns = labels.map(label => tenagaTypeData[label].gender);
+    const jenisDokterBreakdowns = labels.map(label => tenagaTypeData[label].jenisDokter);
 
     const ctx = document.getElementById('tenagaTypeChart').getContext('2d');
 
@@ -131,8 +146,10 @@ export function renderTenagaTypeChart(data) {
 
                             // Ambil breakdown data untuk bar ini
                             const labelIndex = context.dataIndex;
+                            const currentLabel = labels[labelIndex];
                             const breakdown = breakdowns[labelIndex];
                             const genderBreakdown = genderBreakdowns[labelIndex];
+                            const jenisDokterBreakdown = jenisDokterBreakdowns[labelIndex];
 
                             // Buat array untuk tooltip lines
                             const tooltipLines = [
@@ -162,6 +179,20 @@ export function renderTenagaTypeChart(data) {
                                     tooltipLines.push(`  • ${gender}: ${genderBreakdown[gender]} (${genderPercentage}%)`);
                                 }
                             });
+
+                            // Tampilkan breakdown Jenis Dokter khusus untuk tenaga medis
+                            if (isTenagaMedis(currentLabel) && Object.keys(jenisDokterBreakdown).length > 0) {
+                                tooltipLines.push('', '🏥 Jenis Dokter:');
+
+                                Object.entries(jenisDokterBreakdown)
+                                    .sort(([,a], [,b]) => b - a) // Urutkan berdasarkan jumlah tertinggi
+                                    .forEach(([jenisDokter, count]) => {
+                                        const dokterPercentage = ((count / context.parsed.y) * 100).toFixed(1);
+                                        tooltipLines.push(`  • ${jenisDokter}: ${count} (${dokterPercentage}%)`);
+                                    });
+                            } else if (isTenagaMedis(currentLabel)) {
+                                tooltipLines.push('', '🏥 Jenis Dokter: Tidak ada data');
+                            }
 
                             return tooltipLines;
                         },
@@ -203,4 +234,17 @@ export function renderTenagaTypeChart(data) {
     // Set background canvas
     chartInstances.tenagaTypeChart.canvas.style.backgroundColor = isDark ?
         chartTheme.backgroundCanvas.dark : chartTheme.backgroundCanvas.light;
+}
+
+// Fungsi untuk menentukan apakah jenis tenaga termasuk tenaga medis
+function isTenagaMedis(jenisTenaga) {
+    const tenagaMedisKeywords = [
+        'dokter', 'Dokter', 'medis', 'Medis', 'perawat', 'Perawat',
+        'bidan', 'Bidan', 'nakes', 'Nakes', 'kesehatan', 'Kesehatan',
+        'Dokter', 'Perawat', 'Bidan', 'Apoteker', 'Farmasi', 'Medis'
+    ];
+
+    return tenagaMedisKeywords.some(keyword =>
+        jenisTenaga.toLowerCase().includes(keyword.toLowerCase())
+    );
 }
